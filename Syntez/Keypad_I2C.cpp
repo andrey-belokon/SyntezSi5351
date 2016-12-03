@@ -1,7 +1,8 @@
-#include <Wire.h>
 #include "Keypad_I2C.h"
+#include "i2c.h"
 
 void KeypadI2C::setup() {
+  i2c_init();
   pcf8574_write(0xFF);
 }
 
@@ -29,12 +30,14 @@ int KeypadI2C::Read() {
 }
 
 void KeypadI2C::pcf8574_write(int data) {
-  Wire.beginTransmission(i2c_addr);
-  Wire.write(data);
-  Wire.endTransmission();
+  i2c_begin_write(i2c_addr);
+  i2c_write(data);
+  i2c_end();
 }
 
 int KeypadI2C::pcf8574_byte_read() {
-  Wire.requestFrom(i2c_addr, 1);
-  return Wire.read();
+  i2c_begin_read(i2c_addr);
+  int data = i2c_read();
+  i2c_end();
+  return data;
 }

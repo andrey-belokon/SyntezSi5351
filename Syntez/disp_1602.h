@@ -8,7 +8,7 @@
 #endif
 
 #include "TRX.h"
-#include <LiquidCrystal_I2C.h>
+#include "LCD1602_I2C.h"
 
 class Display_1602_I2C: public TRXDisplay {
   private:
