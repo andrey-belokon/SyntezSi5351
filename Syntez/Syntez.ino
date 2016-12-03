@@ -1,4 +1,3 @@
-#include <Wire.h>
 #include <avr/eeprom.h> 
 #include "Encoder.h"
 #include "Keypad_I2C.h"
@@ -6,7 +5,8 @@
 #include <string.h>
 #include "TRX.h"
 #include "disp_1602.h"
-#include "VFO_Si5351.h"
+#include "si5351a.h"
+#include "i2c.h"
 
 // мапинг сканкодов на команды
 const TRXCommand KeyMap[4][4] = {
@@ -21,9 +21,9 @@ Encoder encoder(360);
 Display_1602_I2C disp(0x27);
 TRX trx;
 
-const long SI5351_XTAL = 27000000; // 0 for 25MHz, or real xtal frequeny
-long EEMEM vfo_calibration = 0;
-VFO_Si5351 vfo;
+#define SI5351_XTAL_FREQ 270000000  // 0.1Hz resolution (10x mutiplier)
+long EEMEM SI5351_XTAL_CORR = 0;
+Si5351 vfo;
 
 InputPullUpPin inTX(4);
 InputPullUpPin inTune(5);
@@ -48,10 +48,13 @@ const int pnPre = 6;
 
 void setup()
 {
-  long vfo_calibration_value;
-  eeprom_read_block(&vfo_calibration_value, &vfo_calibration, sizeof(vfo_calibration_value));
-  Serial.begin(9600);
-  vfo.setup(SI5351_XTAL, vfo_calibration_value, SI5351_DRIVE_8MA);
+  long correction;
+  i2c_init();
+  eeprom_read_block(&correction, &SI5351_XTAL_CORR, sizeof(correction));
+  //Serial.begin(9600);
+  //Serial.print(SI5351_XTAL_val);
+  vfo.setup();
+  vfo.set_xtal_freq(SI5351_XTAL_FREQ+correction);
   encoder.setup();
   keypad.setup();
   inTX.setup();
@@ -61,36 +64,41 @@ void setup()
   outQRP.setup();
   outTone.setup();
   disp.setup();
-  if (VFO_CalibrationMenu(vfo,disp,keypad,encoder,vfo_calibration_value)) {
-    eeprom_write_block(&vfo_calibration_value, &vfo_calibration, sizeof(vfo_calibration_value));
+  if (VFO_CalibrationMenu(vfo,disp,keypad,encoder,SI5351_XTAL_FREQ,correction)) {
+    eeprom_write_block(&correction, &SI5351_XTAL_CORR, sizeof(correction));
     delay(2000);
-    vfo.SetCorrection(vfo_calibration_value);
   }
   trx.SwitchToBand(1);
 }
 
 // необходимо раскоментировать требуемую моду (только одну!)
 
-// режим прямого перобразования. частота формируется на 1ом выводе. установить
+// режим прямого преобразования. частота формируется на 1ом выводе. установить
 // CLK0_MULT в значение 1/2/4 в зависимости от коэффициента делания частоты гетеродина
+// второй и третий гетеродины отключены
 //#define MODE_DIRECT_CONVERSION
 
 // одна промежуточная частота. требуемая боковая формируется на счет переключения
 // первого гетеродина "сверху" (IF=VFO-Fc) или "снизу" (IF=Fc-VFO)
-// второй гетеродин вседа работает на частоте IFreq
-//#define MODE_SINGLE_IF
-
-// аналогично MODE_SINGLE_IF но гетеродины в режиме передачи переключаются
-//#define MODE_SINGLE_IF_SWAP
+// второй и третий гетеродины отключены. 
+// режим предназначен для трактов где второй гетеродин кварцованый на фиксированную чатсоту
+//#define MODE_SINGLE_IF_VFOSB
 
 // одна промежуточная частота. первый гетеродин на выходе CLK0 всегда "сверху" (IF=VFO-Fc)
 // требуемая боковая формируется на счет переключения второго гетеродина на выходе CLK1
-#define MODE_SINGLE_IF_VFOUP
+// третий гетеродин отключен
+#define MODE_SINGLE_IF
 
-// режим аналогичен MODE_SINGLE_IF_VFOUP но в режиме передачи гетеродины комутируются,
+// режим аналогичен MODE_SINGLE_IF но в второй гетеродин генерируется на CLK1 при RX и
+// на CLK2 в режиме TX
+// для трактов котрые имеют отдельные смесители для формирования/детектирования сигнала
+//#define MODE_SINGLE_IF_RXTX
+
+// режим аналогичен MODE_SINGLE_IF но в режиме передачи гетеродины комутируются,
 // тоесть первый формируется на CLK1, а второй - на CLK0
 // для трактов где необходимо переключение гетеродинов при смене RX/TX
-//#define MODE_SINGLE_IF_VFOUP_SWAP
+// третий гетеродин отключен
+//#define MODE_SINGLE_IF_SWAP
 
 // две промежуточные частоты. гетеродины формируются 1й - CLK0, 2й - CLK1, 3й - CLK2
 // первый гетеродин всегда "сверху". выбор боковой полосы производится сменой частоты
@@ -113,7 +121,7 @@ const long CLK2_MULT = 1;
 const long IFreq = 9000000;
 
 // вторая промежуточная частота для трактов с двойным преобразованием частоты
-const long IFreq2 = 0;
+const long IFreq2 = 6000000;
 
 // боковая полоса фильтра - USB или LSB
 const int FilterSideband = USB;
@@ -131,48 +139,44 @@ const long SidebandFreqShift = 3000;
 void UpdateFreq() {
 
 #ifdef MODE_DIRECT_CONVERSION
-  vfo.SetFreq(
+  vfo.set_freq(
     CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
     0,
     0
   );
 #endif
 
+#ifdef MODE_SINGLE_IF_VFOSB
+    long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
+    if (trx.state.sideband != FilterSideband) {
+      f+=IFreq;
+    } else {
+      f = (IFreq > f ? IFreq-f : f-IFreq);
+    }
+  vfo.set_freq(CLK0_MULT*f,0,0);
+#endif
+
 #ifdef MODE_SINGLE_IF
-    long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
-    if (trx.state.sideband != FilterSideband) {
-      f+=IFreq;
-    } else {
-      f = (IFreq > f ? IFreq-f : f-IFreq);
-    }
-  vfo.SetFreq(CLK0_MULT*f,CLK1_MULT*IFreq,0);
-#endif
-
-#ifdef MODE_SINGLE_IF_SWAP
-    long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
-    if (trx.state.sideband != FilterSideband) {
-      f+=IFreq;
-    } else {
-      f = (IFreq > f ? IFreq-f : f-IFreq);
-    }
-  vfo.SetFreq(
-    trx.TX ? CLK1_MULT*IFreq : CLK0_MULT*f,
-    trx.TX ? CLK0_MULT*f : CLK1_MULT*IFreq,
-    0);
-#endif
-
-#ifdef MODE_SINGLE_IF_VFOUP
-  vfo.SetFreq(
+  vfo.set_freq(
     CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
     CLK1_MULT*(IFreq + (trx.state.sideband != FilterSideband ? 0 : (FilterSideband == USB ? SidebandFreqShift : -SidebandFreqShift))),
     0
   );
 #endif
 
-#ifdef MODE_SINGLE_IF_VFOUP_SWAP
+#ifdef MODE_SINGLE_IF_RXTX
+  long f = CLK1_MULT*(IFreq + (trx.state.sideband != FilterSideband ? 0 : (FilterSideband == USB ? SidebandFreqShift : -SidebandFreqShift)));
+  vfo.set_freq(
+    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+    trx.TX ? 0 : f,
+    trx.TX ? f : 0
+  );
+#endif
+
+#ifdef MODE_SINGLE_IF_SWAP
   long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
   long f2 = CLK1_MULT*(IFreq + (trx.state.sideband != FilterSideband ? 0 : (FilterSideband == USB ? SidebandFreqShift : -SidebandFreqShift)));
-  vfo.SetFreq(
+  vfo.set_freq(
     trx.TX ? f2 : f1,
     trx.TX ? f1 : f2,
     0
@@ -180,7 +184,7 @@ void UpdateFreq() {
 #endif
 
 #ifdef MODE_DOUBLE_IF
-  vfo.SetFreq(
+  vfo.set_freq(
     CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
     CLK1_MULT*(IFreq + (trx.state.sideband == FilterSideband ? IFreq2 : -IFreq2)),
     CLK2_MULT*(IFreq2)
@@ -191,7 +195,7 @@ void UpdateFreq() {
   long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
   long f2 = CLK1_MULT*(IFreq + (trx.state.sideband == FilterSideband ? IFreq2 : -IFreq2));
   long f3 = CLK2_MULT*(IFreq2);
-  vfo.SetFreq(
+  vfo.set_freq(
     f1,
     trx.TX ? f3 : f2,
     trx.TX ? f2 : f3

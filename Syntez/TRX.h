@@ -88,10 +88,4 @@ class TRXDisplay {
 	  virtual void DrawCalibration(const char* title, long value, bool hi_res);
 };
 
-class VFO {
-  public:
-	  virtual void SetCorrection(long correction) {}
-    virtual void OutCalibrationFreq(long freq) {}
-};
-
 #endif

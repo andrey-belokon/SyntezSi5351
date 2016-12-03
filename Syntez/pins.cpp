@@ -1,4 +1,4 @@
-#include <Wire.h>
+#include "i2c.h"
 #include "pins.h"
 
 bool InputPullUpPin::Read() {
@@ -73,9 +73,9 @@ void OutputPCF8574::Write() {
 
 void OutputPCF8574::pcf8574_write(int data) {
   if (i2c_addr >= 0) {
-	  Wire.beginTransmission(i2c_addr);
-	  Wire.write(data);
-    Wire.endTransmission();
+	  i2c_begin_write(i2c_addr);
+	  i2c_write(data);
+    i2c_end();
   }
 }
 

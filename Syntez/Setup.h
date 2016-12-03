@@ -1,9 +1,10 @@
 ﻿bool VFO_CalibrationMenu(
-  VFO& vfo,
+  Si5351& vfo,
   TRXDisplay& disp,
   KeypadI2C& keypad,
   Encoder& encoder,
-  long& vfo_calibration_value,
+  long xtal_freq,
+  long& correction,
   long calibrate_freq = 30000000) {
   int keycode = keypad.read_scan();
   if (keycode >= 0) {
@@ -15,32 +16,37 @@
       // выход с отменой - btBandUp
       // brAttPre - смена шага на мелкий/крупный (по дефолту крупный)
       // btVFOSel - сброс в ноль
-      long delta = vfo_calibration_value;
-      int freq_step = 8;
-      disp.DrawCalibration(calibrate_title.c_str(),0,false);
-      vfo.SetCorrection(0);
-      vfo.OutCalibrationFreq(calibrate_freq);
+      long curr_correction = correction;
+      long last_correction = 0;
+      int freq_step = 32;
+      disp.DrawCalibration(calibrate_title.c_str(),curr_correction,false);
+      vfo.set_freq(calibrate_freq,0,0);
+      vfo.set_xtal_freq(xtal_freq+curr_correction);
       while (keypad.read_scan() == keycode) {
         delay(100);
       }
       while (true) {
-        delta -= encoder.GetDelta()*freq_step;
-        disp.DrawCalibration(calibrate_title.c_str(),delta,freq_step == 1);
-        vfo.SetCorrection(delta);
+        curr_correction -= encoder.GetDelta()*freq_step/32;
+        disp.DrawCalibration(calibrate_title.c_str(),curr_correction,freq_step == 1);
+        if (curr_correction != last_correction) {
+          vfo.set_xtal_freq(xtal_freq+curr_correction,0);
+          last_correction = curr_correction;
+        }
         keycode = keypad.Read();
         if (keycode >= 0) {
           cmd = KeyMap[keycode & 0xF][keycode >> 4];
           if (cmd == cmdAttPre) {
-            freq_step = (freq_step == 8 ? 1 : 8);
+            freq_step = (freq_step == 1 ? 32 : 1);
           } else if (cmd == cmdVFOSel) {
-            delta = 0;
+            curr_correction = 0;
           } else if (cmd == cmdBandUp) {
-            vfo.SetCorrection(vfo_calibration_value);
+            vfo.set_xtal_freq(xtal_freq+correction);
             return false;
           } else if (cmd == cmdBandDown) {
             String save_title(F("SAVE CALIBRATION"));
-            disp.DrawCalibration(save_title.c_str(),delta,false);
-            vfo_calibration_value = delta;
+            disp.DrawCalibration(save_title.c_str(),curr_correction,false);
+            correction = curr_correction;
+            vfo.set_xtal_freq(xtal_freq+correction);
             return true;
           }
         }
