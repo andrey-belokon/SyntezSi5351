@@ -185,11 +185,11 @@ void Si5351::update_freq0(uint8_t* need_reset_pll)
   }
   
   divider = 900000000 / freq0;
-  if (divider < 15) {
+  if (divider < 6) {
     disable_out(0);
     return;
   }
-  while (divider > 90) {
+  while (divider > 900) {
     rdiv++;
     divider >>= 1;
   }
@@ -231,11 +231,11 @@ void Si5351::update_freq12(uint8_t freq1_changed, uint8_t* need_reset_pll)
   if (freq1) {
     if (freq1_changed) {
       divider = 900000000 / freq1;
-      if (divider < 15) {
+      if (divider < 6) {
         disable_out(1);
         return;
       }
-      while (divider > 90) {
+      while (divider > 900) {
         rdiv++;
         divider >>= 1;
       }
@@ -261,13 +261,13 @@ void Si5351::update_freq12(uint8_t freq1_changed, uint8_t* need_reset_pll)
     if (freq2) {
       // CLK2 --> PLL_B with fractional or integer multisynth 
       divider = freq_pll_b / freq2;
-      if (divider < 15) {
+      if (divider < 6) {
         disable_out(2);
         return;
       }
       rdiv = 0;
       ff = freq2;
-      while (divider > 90) {
+      while (divider > 900) {
         rdiv++;
         ff <<= 1;
         divider >>= 1;
@@ -280,11 +280,11 @@ void Si5351::update_freq12(uint8_t freq1_changed, uint8_t* need_reset_pll)
   } else if (freq2) {
     // PLL_B --> CLK2, multisynth integer
     divider = 900000000 / freq2;
-    if (divider < 15) {
+    if (divider < 6) {
       disable_out(2);
       return;
     }
-    while (divider > 90) {
+    while (divider > 900) {
       rdiv++;
       divider >>= 1;
     }
