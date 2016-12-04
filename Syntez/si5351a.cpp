@@ -51,14 +51,17 @@ void si5351_setup_pll(uint8_t pll, uint8_t a, uint32_t b, uint32_t c)
   uint32_t P2 = (uint32_t)(128 * b - c * t);
   uint32_t P3 = c;
   
-  si5351_write_reg(pll + 0, ((uint8_t*)&P3)[1]);
-  si5351_write_reg(pll + 1, (uint8_t)P3);
-  si5351_write_reg(pll + 2, ((uint8_t*)&P1)[2] & 0x3);
-  si5351_write_reg(pll + 3, ((uint8_t*)&P1)[1]);
-  si5351_write_reg(pll + 4, (uint8_t)P1);
-  si5351_write_reg(pll + 5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-  si5351_write_reg(pll + 6, ((uint8_t*)&P2)[1]);
-  si5351_write_reg(pll + 7, (uint8_t)P2);
+  i2c_begin_write(SI5351_I2C_ADDR);
+  i2c_write(pll);
+  i2c_write(((uint8_t*)&P3)[1]);
+  i2c_write((uint8_t)P3);
+  i2c_write(((uint8_t*)&P1)[2] & 0x3);
+  i2c_write(((uint8_t*)&P1)[1]);
+  i2c_write((uint8_t)P1);
+  i2c_write(((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
+  i2c_write(((uint8_t*)&P2)[1]);
+  i2c_write((uint8_t)P2);
+  i2c_end();
 }
 
 //
@@ -72,14 +75,17 @@ void si5351_setup_msynth_int(uint8_t synth, uint32_t divider, uint8_t rDiv)
   uint32_t P2 = 0;
   uint32_t P3 = 1;
   
-  si5351_write_reg(synth + 0, ((uint8_t*)&P3)[1]);
-  si5351_write_reg(synth + 1, (uint8_t)P3);
-  si5351_write_reg(synth + 2, (((uint8_t*)&P1)[2] & 0x3) | rDiv);
-  si5351_write_reg(synth + 3, ((uint8_t*)&P1)[1]);
-  si5351_write_reg(synth + 4, (uint8_t)P1);
-  si5351_write_reg(synth + 5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-  si5351_write_reg(synth + 6, ((uint8_t*)&P2)[1]);
-  si5351_write_reg(synth + 7, (uint8_t)P2);
+  i2c_begin_write(SI5351_I2C_ADDR);
+  i2c_write(synth);
+  i2c_write(((uint8_t*)&P3)[1]);
+  i2c_write((uint8_t)P3);
+  i2c_write((((uint8_t*)&P1)[2] & 0x3) | rDiv);
+  i2c_write(((uint8_t*)&P1)[1]);
+  i2c_write((uint8_t)P1);
+  i2c_write(((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
+  i2c_write(((uint8_t*)&P2)[1]);
+  i2c_write((uint8_t)P2);
+  i2c_end();
 }
 
 // Set up MultiSynth with mult, num and denom
