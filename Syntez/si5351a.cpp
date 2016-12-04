@@ -12,6 +12,10 @@
 #define SI_SYNTH_MS_2   58
 #define SI_PLL_RESET    177
 
+#define SI_CLK0_PHASE  165
+#define SI_CLK1_PHASE  166
+#define SI_CLK2_PHASE  167
+
 #define SI_R_DIV_1    0b00000000      // R-division ratio definitions
 #define SI_R_DIV_2    0b00010000
 #define SI_R_DIV_4    0b00100000
@@ -299,12 +303,117 @@ void Si5351::update_freq12(uint8_t freq1_changed, uint8_t* need_reset_pll)
   
     if (divider != freq2_div || rdiv != freq2_rdiv) {
       si5351_setup_msynth_int(SI_SYNTH_MS_2, divider, R_DIV(rdiv));
-      si5351_write_reg(SI_PLL_RESET, 0xA0);  
       si5351_write_reg(SI_CLK2_CONTROL, 0x4C | power2 | SI_CLK_SRC_PLL_B);
       freq2_div = divider;
       freq2_rdiv = rdiv;
       *need_reset_pll = 1;
     }
   }
+}
+
+void Si5351::update_freq01_quad(uint8_t* need_reset_pll)
+{
+  uint64_t pll_freq;
+  uint8_t mult;
+  uint32_t num;
+  uint32_t divider;
+
+  if (freq0 == 0) {
+    disable_out(0);
+    disable_out(1);
+    return;
+  }
+  
+  if (freq0 >= 7000000) {
+    divider = (900000000 / freq0);
+  } else if (freq0 >= 4000000) {
+    divider = (600000000 / freq0);
+  } else if (freq0 >= 2000000) {
+    // VFO run on freq less than 600MHz. possible unstable
+    // comment this for disable operation below 600MHz VFO (4MHz on out)
+    divider = 0x7F;
+  } else {
+    divider = 0; // disable out on invalid freq
+  }
+  if (divider < 6 || divider > 0x7F) {
+    disable_out(0);
+    disable_out(1);
+    return;
+  }
+
+  pll_freq = divider * freq0;
+
+  mult = pll_freq*10 / xtal_freq;
+  num = (pll_freq - (uint64_t)mult*xtal_freq/10)*FRAC_DENOM*10/xtal_freq;
+
+  si5351_setup_pll(SI_SYNTH_PLL_A, mult, num, FRAC_DENOM);
+
+  if (divider != freq0_div) {
+    si5351_setup_msynth_int(SI_SYNTH_MS_0, divider, 0);
+    si5351_write_reg(SI_CLK0_CONTROL, 0x4C | power0 | SI_CLK_SRC_PLL_A);
+    si5351_write_reg(SI_CLK0_PHASE, 0);
+    si5351_setup_msynth_int(SI_SYNTH_MS_1, divider, 0);
+    si5351_write_reg(SI_CLK1_CONTROL, 0x4C | power0 | SI_CLK_SRC_PLL_A);
+    si5351_write_reg(SI_CLK1_PHASE, divider & 0x7F);
+    freq0_div = freq1_div = divider;
+    *need_reset_pll = 1;
+  }
+}
+
+void Si5351::update_freq2(uint8_t* need_reset_pll)
+{
+  uint64_t pll_freq;
+  uint8_t mult;
+  uint32_t num;
+  uint32_t ff;
+  uint32_t divider;
+  uint8_t rdiv = 0;
+
+  if (freq2 == 0) {
+    disable_out(2);
+    return;
+  }
+
+  // PLL_B --> CLK2, multisynth integer
+  divider = 900000000 / freq2;
+  if (divider < 6) {
+    disable_out(2);
+    return;
+  }
+  while (divider > 900) {
+    rdiv++;
+    divider >>= 1;
+  }
+  divider &= 0xFFFFFFFE;
+
+  pll_freq = divider * freq2 * (1 << rdiv);
+
+  mult = pll_freq*10 / xtal_freq;
+  num = (pll_freq - (uint64_t)mult*xtal_freq/10)*FRAC_DENOM*10/xtal_freq;
+
+  si5351_setup_pll(SI_SYNTH_PLL_B, mult, num, FRAC_DENOM);
+
+  if (divider != freq2_div || rdiv != freq2_rdiv) {
+    si5351_setup_msynth_int(SI_SYNTH_MS_2, divider, R_DIV(rdiv));
+    si5351_write_reg(SI_CLK2_CONTROL, 0x4C | power2 | SI_CLK_SRC_PLL_B);
+    freq2_div = divider;
+    freq2_rdiv = rdiv;
+    *need_reset_pll = 1;
+  }
+}
+
+void Si5351::set_freq_quadrature(uint32_t f01, uint32_t f2)
+{
+  uint8_t need_reset_pll = 0;
+  if (f01 != freq0) {
+    freq0 = f01;
+    update_freq01_quad(&need_reset_pll);
+  }
+  if (f2 != freq2) {
+    freq2 = f2;
+    update_freq2(&need_reset_pll);
+  }
+  if (need_reset_pll) 
+    si5351_write_reg(SI_PLL_RESET, 0xA0);
 }
 

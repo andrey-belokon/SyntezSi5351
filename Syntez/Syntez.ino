@@ -74,9 +74,14 @@ void setup()
 // необходимо раскоментировать требуемую моду (только одну!)
 
 // режим прямого преобразования. частота формируется на 1ом выводе. установить
-// CLK0_MULT в значение 1/2/4 в зависимости от коэффициента делания частоты гетеродина
+// CLK0_MULT в значение 1/2/4 в зависимости от коэффициента деления частоты гетеродина
 // второй и третий гетеродины отключены
-//#define MODE_DIRECT_CONVERSION
+//#define MODE_DC
+
+// режим прямого преобразования с формированием квадратурн
+// частота формируется на выводах CLK0,CLK1 со сдвигом фаз 90град
+// CLK0_MULT не используется. CLK2 отключен. Минимальная частота настройки 2MHz (по даташиту 4MHz)
+//#define MODE_DC_QUADRATURE
 
 // одна промежуточная частота. требуемая боковая формируется на счет переключения
 // первого гетеродина "сверху" (IF=VFO-Fc) или "снизу" (IF=Fc-VFO)
@@ -138,10 +143,17 @@ const long SidebandFreqShift = 3000;
 
 void UpdateFreq() {
 
-#ifdef MODE_DIRECT_CONVERSION
+#ifdef MODE_DC
   vfo.set_freq(
     CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
     0,
+    0
+  );
+#endif
+
+#ifdef MODE_DC_QUADRATURE
+  vfo.set_freq_quadrature(
+    trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0),
     0
   );
 #endif
