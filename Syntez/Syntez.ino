@@ -53,7 +53,7 @@ void setup()
   eeprom_read_block(&correction, &SI5351_XTAL_CORR, sizeof(correction));
   //Serial.begin(9600);
   //Serial.print(SI5351_XTAL_val);
-  vfo.setup();
+  vfo.setup(1,0,0);
   vfo.set_xtal_freq(SI5351_XTAL_FREQ+correction);
   encoder.setup();
   keypad.setup();
@@ -92,12 +92,12 @@ void setup()
 // одна промежуточная частота. первый гетеродин на выходе CLK0 всегда "сверху" (IF=VFO-Fc)
 // требуемая боковая формируется на счет переключения второго гетеродина на выходе CLK1
 // третий гетеродин отключен
-#define MODE_SINGLE_IF
+//#define MODE_SINGLE_IF
 
 // режим аналогичен MODE_SINGLE_IF но в второй гетеродин генерируется на CLK1 при RX и
 // на CLK2 в режиме TX
 // для трактов котрые имеют отдельные смесители для формирования/детектирования сигнала
-//#define MODE_SINGLE_IF_RXTX
+#define MODE_SINGLE_IF_RXTX
 
 // режим аналогичен MODE_SINGLE_IF но в режиме передачи гетеродины комутируются,
 // тоесть первый формируется на CLK1, а второй - на CLK0
@@ -123,7 +123,7 @@ const long CLK1_MULT = 1;
 const long CLK2_MULT = 1;
 
 // промежуточная частота
-const long IFreq = 9000000;
+const long IFreq = 9830400;
 
 // вторая промежуточная частота для трактов с двойным преобразованием частоты
 const long IFreq2 = 6000000;

@@ -2,7 +2,7 @@
 #include "si5351a.h"
 #include "i2c.h"
 
-#define SI_CLK0_CONTROL  16      // Register definitions
+#define SI_CLK0_CONTROL 16      // Register definitions
 #define SI_CLK1_CONTROL 17
 #define SI_CLK2_CONTROL 18
 #define SI_SYNTH_PLL_A  26
@@ -23,7 +23,7 @@
 #define SI_R_DIV_16   0b01000000
 #define SI_R_DIV_32   0b01010000
 #define SI_R_DIV_64   0b01100000
-#define SI_R_DIV_128    0b01110000
+#define SI_R_DIV_128  0b01110000
 
 #define R_DIV(x) ((x) << 4)
 
@@ -254,7 +254,9 @@ void Si5351::update_freq12(uint8_t freq1_changed, uint8_t* need_reset_pll)
       if (divider != freq1_div || rdiv != freq1_rdiv) {
         si5351_setup_msynth_int(SI_SYNTH_MS_1, divider, R_DIV(rdiv));
         si5351_write_reg(SI_CLK1_CONTROL, 0x4C | power1 | SI_CLK_SRC_PLL_B);
-        si5351_write_reg(SI_CLK2_CONTROL, 0x4C | power2 | SI_CLK_SRC_PLL_B);
+        if (freq2) {
+          si5351_write_reg(SI_CLK2_CONTROL, 0x4C | power2 | SI_CLK_SRC_PLL_B);
+        }
         freq1_div = divider;
         freq1_rdiv = rdiv;
         *need_reset_pll = 1;
