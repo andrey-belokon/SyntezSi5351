@@ -21,7 +21,7 @@ Encoder encoder(360);
 Display_1602_I2C disp(0x27);
 TRX trx;
 
-#define SI5351_XTAL_FREQ 270000000  // 0.1Hz resolution (10x mutiplier)
+#define SI5351_XTAL_FREQ 250000000  // 0.1Hz resolution (10x mutiplier)
 long EEMEM SI5351_XTAL_CORR = 0;
 Si5351 vfo;
 
@@ -107,14 +107,19 @@ void setup()
 
 // две промежуточные частоты. гетеродины формируются 1й - CLK0, 2й - CLK1, 3й - CLK2
 // первый гетеродин всегда "сверху". выбор боковой полосы производится сменой частоты
-// второго гетеродина
+// второго гетеродина для режимов MODE_DOUBLE_IF_USB/LSB, или сменой частоты третьего гетеродина MODE_DOUBLE_IF
+// в режиме MODE_DOUBLE_IF второй гетеродин ниже первой ПЧ
 //#define MODE_DOUBLE_IF
+//#define MODE_DOUBLE_IF_USB
+//#define MODE_DOUBLE_IF_LSB
 
 // режим аналогичен MODE_DOUBLE_IF но в режиме передачи 2й и 3й гетеродины комутируются,
 // тоесть второй формируется на CLK2, а третий - на CLK1
 // для трактов с двумя промежуточными частотами где необходимо переключение
 // гетеродинов при смене RX/TX
 //#define MODE_DOUBLE_IF_SWAP23
+//#define MODE_DOUBLE_IF_USB_SWAP23
+//#define MODE_DOUBLE_IF_LSB_SWAP23
 
 // множители частоты на выходах. в случае необходимости получения на выводе 2/4 кратной
 // частоты установить в соответствующее значение
@@ -122,24 +127,12 @@ const long CLK0_MULT = 1;
 const long CLK1_MULT = 1;
 const long CLK2_MULT = 1;
 
-// промежуточная частота
-const long IFreq = 9830400;
+// частота второго/третьего гетеродина - на 300Hz ниже/выше от точки точки -3dB на нижнем/верхнем скате фильтра 
+const long IFreq_USB = 9828200;
+const long IFreq_LSB = 9831500;
 
-// вторая промежуточная частота для трактов с двойным преобразованием частоты
-const long IFreq2 = 6000000;
-
-// боковая полоса фильтра - USB или LSB
-const int FilterSideband = USB;
-
-// сдвиг частоты второго гетеродина для инверсии полосы
-// значение константы всегда положительное!
-// для FILTER_USB считаем что второй гетеродин выставлен на нижний скат фильтра
-// для инверсии боковой увеличиваем его частоту на SidebandFreqShift Hz чтобы он попал
-// на верхний скат
-// в случае FILTER_LSB второй гетеродин выставлен на верхний скат и для инверсии
-// частота гетеродина уменьшается на SidebandFreqShift Hz чтобы он попал на
-// нижний скат
-const long SidebandFreqShift = 3000;
+// первая промежуточная частота для трактов с двойным преобразованием частоты
+const long IFreqEx = 45000000;
 
 void UpdateFreq() {
 
@@ -160,6 +153,7 @@ void UpdateFreq() {
 
 #ifdef MODE_SINGLE_IF_VFOSB
     long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
+    long IFreq = (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB);
     if (trx.state.sideband != FilterSideband) {
       f+=IFreq;
     } else {
@@ -170,24 +164,24 @@ void UpdateFreq() {
 
 #ifdef MODE_SINGLE_IF
   vfo.set_freq(
-    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
-    CLK1_MULT*(IFreq + (trx.state.sideband != FilterSideband ? 0 : (FilterSideband == USB ? SidebandFreqShift : -SidebandFreqShift))),
+    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+    CLK1_MULT*(trx.state.sideband == USB ? IFreq_USB : IFreq_LSB),
     0
   );
 #endif
 
 #ifdef MODE_SINGLE_IF_RXTX
-  long f = CLK1_MULT*(IFreq + (trx.state.sideband != FilterSideband ? 0 : (FilterSideband == USB ? SidebandFreqShift : -SidebandFreqShift)));
+  long f = CLK1_MULT*(trx.state.sideband == USB ? IFreq_USB : IFreq_LSB);
   vfo.set_freq(
-    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
     trx.TX ? 0 : f,
     trx.TX ? f : 0
   );
 #endif
 
 #ifdef MODE_SINGLE_IF_SWAP
-  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
-  long f2 = CLK1_MULT*(IFreq + (trx.state.sideband != FilterSideband ? 0 : (FilterSideband == USB ? SidebandFreqShift : -SidebandFreqShift)));
+  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
+  long f2 = CLK1_MULT*(trx.state.sideband == USB ? IFreq_USB : IFreq_LSB);
   vfo.set_freq(
     trx.TX ? f2 : f1,
     trx.TX ? f1 : f2,
@@ -196,17 +190,57 @@ void UpdateFreq() {
 #endif
 
 #ifdef MODE_DOUBLE_IF
+  long IFreq = (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB); // инверсия боковой!!
   vfo.set_freq(
-    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
-    CLK1_MULT*(IFreq + (trx.state.sideband == FilterSideband ? IFreq2 : -IFreq2)),
-    CLK2_MULT*(IFreq2)
+    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+    CLK1_MULT*(IFreqEx - IFreq),
+    CLK2_MULT*(IFreq)
+  );
+#endif
+
+#ifdef MODE_DOUBLE_IF_LSB
+  vfo.set_freq(
+    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+    CLK1_MULT*(IFreq + (trx.state.sideband == LSB ? IFreq_LSB : -IFreq_LSB)),
+    CLK2_MULT*(IFreq_LSB)
+  );
+#endif
+
+#ifdef MODE_DOUBLE_IF_USB
+  vfo.set_freq(
+    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+    CLK1_MULT*(IFreq + (trx.state.sideband == USB ? IFreq_USB : -IFreq_USB)),
+    CLK2_MULT*(IFreq_USB)
   );
 #endif
 
 #ifdef MODE_DOUBLE_IF_SWAP23
-  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreq + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
-  long f2 = CLK1_MULT*(IFreq + (trx.state.sideband == FilterSideband ? IFreq2 : -IFreq2));
-  long f3 = CLK2_MULT*(IFreq2);
+  long IFreq = (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB); // инверсия боковой!!
+  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
+  long f2 = CLK1_MULT*(IFreqEx - IFreq);
+  long f3 = CLK2_MULT*(IFreq);
+  vfo.set_freq(
+    f1,
+    trx.TX ? f3 : f2,
+    trx.TX ? f2 : f3
+  );
+#endif
+
+#ifdef MODE_DOUBLE_IF_LSB_SWAP23
+  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
+  long f2 = CLK1_MULT*(IFreq + (trx.state.sideband == LSB ? IFreq_LSB : -IFreq_LSB));
+  long f3 = CLK2_MULT*(IFreq_LSB);
+  vfo.set_freq(
+    f1,
+    trx.TX ? f3 : f2,
+    trx.TX ? f2 : f3
+  );
+#endif
+
+#ifdef MODE_DOUBLE_IF_USB_SWAP23
+  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
+  long f2 = CLK1_MULT*(IFreq + (trx.state.sideband == USB ? IFreq_USB : -IFreq_USB));
+  long f3 = CLK2_MULT*(IFreq_USB);
   vfo.set_freq(
     f1,
     trx.TX ? f3 : f2,
