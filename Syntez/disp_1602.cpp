@@ -148,7 +148,27 @@ void Display_1602_I2C::Draw(TRX& trx) {
   lcd.print(buf[1]);
 }
 
-void Display_1602_I2C::DrawCalibration(const char* title, long value, bool hi_res) {
+void Display_1602_I2C::DrawMenu(const char* title, const char** items, byte selected, const char* help, byte fontsize)
+{
+  char buf[2][17];
+
+  memset(buf,' ',34);
+  strncpy(buf[0],title,16);
+  sprintf(buf[1],">%s",items[selected]);
+  // supress null writed by sprintf
+  for (int i=2;i < 16;i++) {
+    if (buf[1][i] == 0) buf[1][i]=' ';
+  }
+  buf[0][16] = 0; // stop for .print
+  buf[1][16] = 0; // stop for .print
+  lcd.setCursor(0, 0);
+  lcd.print(buf[0]);
+  lcd.setCursor(0, 1);
+  lcd.print(buf[1]);
+}
+
+void Display_1602_I2C::DrawCalibration(const char* title, long value, bool hi_res, const char* help = NULL)
+{
   char buf[2][17];
 
   memset(buf,' ',34);
@@ -157,7 +177,7 @@ void Display_1602_I2C::DrawCalibration(const char* title, long value, bool hi_re
     buf[1][0] = '*';
   sprintf(buf[1]+2,"CORR: %ld",value);
   // supress null writed by sprintf
-  for (int i=2;i < 16;i++) {
+  for (byte i=2;i < 16;i++) {
     if (buf[1][i] == 0) buf[1][i]=' ';
   }
 

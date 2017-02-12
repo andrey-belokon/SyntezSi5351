@@ -3,11 +3,11 @@
 #include <avr/pgmspace.h>
 #include "i2c.h"
 
-#define I2C_START 0x08
+#define I2C_START     0x08
 #define I2C_START_RPT 0x10
 #define I2C_SLA_W_ACK 0x18
 #define I2C_SLA_R_ACK 0x40
-#define I2C_DATA_ACK 0x28
+#define I2C_DATA_ACK  0x28
 
 uint8_t i2cStart()
 {
@@ -22,11 +22,13 @@ void i2c_end()
 	while ((TWCR & (1<<TWSTO))) ;
 }
 
-void i2c_write(uint8_t data)
+bool i2c_write(uint8_t data)
 {
 	TWDR = data;
 	TWCR = (1<<TWINT) | (1<<TWEN);
 	while (!(TWCR & (1<<TWINT))) ;
+  uint8_t ret = TWSR & 0xF8;
+  return ret == I2C_DATA_ACK || ret == I2C_SLA_W_ACK || ret == I2C_SLA_R_ACK;
 }
 
 uint8_t i2c_read()
@@ -39,22 +41,36 @@ uint8_t i2c_read()
 void i2c_read(uint8_t* data, uint8_t count)
 {
   while (count--) {
-    TWCR = (1<<TWINT) | (1<<TWEN);
+    if (count) TWCR = (1<<TWINT) | (1<<TWEN) | (1<<TWEA);
+    else       TWCR = (1<<TWINT) | (1<<TWEN);
     while (!(TWCR & (1<<TWINT))) ;
     *data++ = TWDR;
   }
 }
 
-void i2c_begin_write(uint8_t addr)
+bool i2c_begin_write(uint8_t addr)
 {
-  i2cStart();
-  i2c_write(addr<<1);
+  if (i2cStart()) {
+    return i2c_write(addr<<1);
+  } else
+    return false;
 }
 
-void i2c_begin_read(uint8_t addr)
+bool i2c_begin_read(uint8_t addr)
 {
-  i2cStart();
-  i2c_write((addr<<1) | 1);
+  if (i2cStart()) {
+    return i2c_write((addr<<1) | 1);
+  } else
+    return false; 
+}
+
+bool i2c_device_found(uint8_t addr)
+{
+  if (i2c_begin_write(addr)) {
+    i2c_end();
+    return true;
+  } else
+    return false;
 }
 
 // Init TWI (I2C)

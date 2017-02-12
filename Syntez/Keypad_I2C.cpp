@@ -8,7 +8,7 @@ void KeypadI2C::setup() {
 
 int KeypadI2C::read_scan() {
   pcf8574_write(0xFF);
-  for (int row=0; row <= 2; row++) {
+  for (byte row=0; row <= 2; row++) {
     pcf8574_write(~(1<<row));
     switch (~(pcf8574_byte_read() >> 4) & 0xF) {
       case 0x1: return row;

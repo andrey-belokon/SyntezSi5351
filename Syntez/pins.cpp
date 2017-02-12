@@ -24,7 +24,10 @@ void InputAnalogPin::setup() {
 
 int InputAnalogPin::Read() {
   if (pin >= 0 && millis()-last_pool_tm >= pool_interval) {
-    value = (max_val-min_val)*(long)analogRead(pin)/1024L + min_val;
+    int new_value = (max_val-min_val)*(long)analogRead(pin)/1024L + min_val;
+    if (abs(new_value-value) > rfac)
+      value=new_value;
+    last_pool_tm = millis();
   }
   return value;
 }
@@ -41,14 +44,14 @@ void OutputTonePin::Write(bool value) {
   }
 }
 
-void OutputPin::setup() {
+void OutputBinPin::setup() {
   if (pin >= 0) {
 	  pinMode(pin, OUTPUT);
 	  Write(def_value);
   }
 }
 
-void OutputPin::Write(bool value) {
+void OutputBinPin::Write(bool value) {
   if (pin >= 0 && state != value) {
 	  digitalWrite(pin,value?(active_level == HIGH?HIGH:LOW):(active_level == HIGH?LOW:HIGH));
 	  state = value;

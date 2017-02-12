@@ -41,8 +41,7 @@ void TRX::ChangeFreq(long freq_delta) {
 }
 
 void TRX::ExecCommand(TRXCommand cmd) {
-  if (TX) return; // блокируем при передаче
-  if (Lock && (cmd != cmdAttPre) && (cmd != cmdLock) && (cmd != cmdRIT) && (cmd != cmdQRP)) return;
+  if (TX && (cmd != cmdQRP)) return; // блокируем при передаче
   switch (cmd) {
     case cmdAttPre: // переключает по кругу аттенюатор/увч
       if (++state.AttPre > 2) state.AttPre = 0;
@@ -72,8 +71,8 @@ void TRX::ExecCommand(TRXCommand cmd) {
       RIT = !RIT;
       break;
     case cmdBandUp:
-	  if (BandIndex >= 0) {
-		memcpy(&BandData[BandIndex],&state,sizeof(TVFOState));
+	    if (BandIndex >= 0) {
+		    memcpy(&BandData[BandIndex],&state,sizeof(TVFOState));
         if (++BandIndex >= BAND_COUNT)
           BandIndex = 0;
         memcpy(&state,&BandData[BandIndex],sizeof(TVFOState));
@@ -86,7 +85,7 @@ void TRX::ExecCommand(TRXCommand cmd) {
     case cmdBandDown:
       if (BandIndex >= 0) {
         memcpy(&BandData[BandIndex],&state,sizeof(TVFOState));
-		if (--BandIndex < 0)
+		    if (--BandIndex < 0)
           BandIndex = BAND_COUNT-1;
         memcpy(&state,&BandData[BandIndex],sizeof(TVFOState));
         Lock = RIT = false;

@@ -104,6 +104,19 @@ void si5351_setup_msynth(uint8_t synth, uint8_t a, uint32_t b, uint32_t c, uint8
   uint32_t P2 = (uint32_t)(128 * b - c * t);
   uint32_t P3 = c;
   
+  i2c_begin_write(SI5351_I2C_ADDR);
+  i2c_write(synth);
+  i2c_write(((uint8_t*)&P3)[1]);
+  i2c_write((uint8_t)P3);
+  i2c_write((((uint8_t*)&P1)[2] & 0x3) | rDiv);
+  i2c_write(((uint8_t*)&P1)[1]);
+  i2c_write((uint8_t)P1);
+  i2c_write(((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
+  i2c_write(((uint8_t*)&P2)[1]);
+  i2c_write((uint8_t)P2);
+  i2c_end();
+
+/*
   si5351_write_reg(synth + 0, ((uint8_t*)&P3)[1]);
   si5351_write_reg(synth + 1, (uint8_t)P3);
   si5351_write_reg(synth + 2, (((uint8_t*)&P1)[2] & 0x3) | rDiv);
@@ -112,6 +125,7 @@ void si5351_setup_msynth(uint8_t synth, uint8_t a, uint32_t b, uint32_t c, uint8
   si5351_write_reg(synth + 5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
   si5351_write_reg(synth + 6, ((uint8_t*)&P2)[1]);
   si5351_write_reg(synth + 7, (uint8_t)P2);
+*/  
 }
 
 void Si5351::setup(uint8_t _power0, uint8_t _power1, uint8_t _power2)

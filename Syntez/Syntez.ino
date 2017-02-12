@@ -1,12 +1,29 @@
+//
+// Синтезатор UR5FFR
+// Copyright (c) Andrey Belokon, 2016 Odessa 
+// https://github.com/andrey-belokon/SyntezSi5351
+//
+
+// раскоментарить тип используемого дисплея (только один!)
+//#define DISPLAY_LCD_1602
+#define DISPLAY_TFT_ILI9341
+
 #include <avr/eeprom.h> 
 #include "Encoder.h"
 #include "Keypad_I2C.h"
+#include "TinyRTC.h"
 #include "pins.h"
-#include <string.h>
 #include "TRX.h"
-#include "disp_1602.h"
+#ifdef DISPLAY_LCD_1602
+  #include "disp_1602.h"
+#endif
+#ifdef DISPLAY_TFT_ILI9341
+  #include "disp_ILI9341.h"
+#endif
 #include "si5351a.h"
 #include "i2c.h"
+
+#define MENU_DELAY  1000      // задержка вызова меню в сек
 
 // мапинг сканкодов на команды
 const TRXCommand KeyMap[4][4] = {
@@ -18,19 +35,29 @@ const TRXCommand KeyMap[4][4] = {
 
 KeypadI2C keypad(0x26);
 Encoder encoder(360);
-Display_1602_I2C disp(0x27);
+#ifdef DISPLAY_LCD_1602
+  Display_1602_I2C disp(0x27);
+#endif
+#ifdef DISPLAY_TFT_ILI9341
+  Display_ILI9341_SPI disp;
+#endif
 TRX trx;
 
-#define SI5351_XTAL_FREQ 250000000  // 0.1Hz resolution (10x mutiplier)
-long EEMEM SI5351_XTAL_CORR = 0;
+#define SI5351_XTAL_FREQ        250000000  // 0.1Hz resolution (10x mutiplier)
+#define SI5351_CALIBRATION_FREQ 30000000   // частота на которой проводится калибровка
+long EEMEM Si5351_correction_EEMEM = 0;
+long Si5351_correction;
 Si5351 vfo;
+
+int EEMEM SMeterMap_EEMEM[15] = {70,140,210,280,350,420,490,560,630,700,770,840,910,940,980};
+int SMeterMap[15];
 
 InputPullUpPin inTX(4);
 InputPullUpPin inTune(5);
-InputAnalogPin inRIT(A6,0,-1000,1000);
-InputAnalogPin inSMetr(A7,0,0,1000);
-OutputPin outTX(6,false,HIGH);
-OutputPin outQRP(7,false,HIGH);
+InputAnalogPin inRIT(A0,0,-1000,1000,5);
+InputAnalogPin inSMeter(A1,0,0,1000);
+OutputBinPin outTX(6,false,HIGH);
+OutputBinPin outQRP(7,false,HIGH);
 OutputTonePin outTone(8,1000);
 
 OutputPCF8574 outBandCtrl(0x25,0);
@@ -44,17 +71,15 @@ const int pnBand3 = 3;
 const int pnAtt = 5;
 const int pnPre = 6;
 
-#include "Setup.h"
-
 void setup()
 {
-  long correction;
   i2c_init();
-  eeprom_read_block(&correction, &SI5351_XTAL_CORR, sizeof(correction));
+  eeprom_read_block(&Si5351_correction, &Si5351_correction_EEMEM, sizeof(Si5351_correction));
+  eeprom_read_block(SMeterMap, SMeterMap_EEMEM, sizeof(SMeterMap));
   //Serial.begin(9600);
   //Serial.print(SI5351_XTAL_val);
   vfo.setup(1,0,0);
-  vfo.set_xtal_freq(SI5351_XTAL_FREQ+correction);
+  vfo.set_xtal_freq(SI5351_XTAL_FREQ+Si5351_correction);
   encoder.setup();
   keypad.setup();
   inTX.setup();
@@ -64,11 +89,8 @@ void setup()
   outQRP.setup();
   outTone.setup();
   disp.setup();
-  if (VFO_CalibrationMenu(vfo,disp,keypad,encoder,SI5351_XTAL_FREQ,correction)) {
-    eeprom_write_block(&correction, &SI5351_XTAL_CORR, sizeof(correction));
-    delay(2000);
-  }
   trx.SwitchToBand(1);
+  //RTC_Write(0x0,0x03,0x21,0x5,0x10,0x2,0x17);
 }
 
 // необходимо раскоментировать требуемую моду (только одну!)
@@ -249,7 +271,8 @@ void UpdateFreq() {
 #endif
 }
 
-void UpdateBandCtrl() {
+void UpdateBandCtrl() 
+{
   // 0-nothing; 1-ATT; 2-Preamp
   switch (trx.state.AttPre) {
     case 0:
@@ -272,20 +295,57 @@ void UpdateBandCtrl() {
   outBandCtrl.Write();
 }
 
+#include "menu.h"
+
 void loop()
 {
+  static long menu_tm = -1;
   bool tune = inTune.Read();
   trx.TX = tune || inTX.Read();
   trx.ChangeFreq(encoder.GetDelta());
-  int keycode = keypad.Read();
-  if (keycode >= 0) {
-    trx.ExecCommand(KeyMap[keycode & 0xF][keycode >> 4]);
+  int keycode;
+  if ((keycode=keypad.GetLastCode()) >= 0) {
+    if (KeyMap[keycode & 0xF][keycode >> 4] == cmdLock && menu_tm >= 0 && millis()-menu_tm >= MENU_DELAY) {
+      // отменяем команду
+      trx.ExecCommand(cmdLock);
+      // call to menu
+      ShowMenu();
+      // перерисовываем дисплей
+      disp.clear();
+      disp.reset();
+      disp.Draw(trx);
+      menu_tm = -1;
+      return;
+    }
+  } else {
+    menu_tm = -1; 
   }
+  if ((keycode=keypad.Read()) >= 0) {
+    TRXCommand cmd=KeyMap[keycode & 0xF][keycode >> 4];
+    if (cmd == cmdLock) {
+      // длительное нажатие MENU_KEY - вызов меню
+      if (menu_tm < 0) {
+        menu_tm = millis();
+      }
+    }
+    trx.ExecCommand(cmd);
+  }
+  if (trx.RIT)
+    trx.RIT_Value = inRIT.Read();
   UpdateFreq();
   outQRP.Write(trx.QRP || tune);
   outTone.Write(tune);
   outTX.Write(trx.TX);
   UpdateBandCtrl();
-  trx.SMeter = inSMetr.Read() /100;
+  // read and convert smeter
+  int val = inSMeter.Read();
+  trx.SMeter =  0;
+  for (byte i=14; i >= 0; i--) {
+    if (val > SMeterMap[i]) {
+      trx.SMeter =  i+1;
+      break;
+    }
+  }
+  // refresh display
   disp.Draw(trx);
 }

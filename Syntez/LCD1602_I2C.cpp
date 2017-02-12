@@ -17,8 +17,6 @@ inline void LiquidCrystal_I2C::write(uint8_t value) {
 }
 #endif
 
-#define printIIC(args)  i2c_write(args)
-
 // When the display powers up, it is configured as follows:
 //
 // 1. Display clear
@@ -47,7 +45,7 @@ LiquidCrystal_I2C::LiquidCrystal_I2C(uint8_t lcd_Addr,uint8_t lcd_cols,uint8_t l
 }
 
 void LiquidCrystal_I2C::init(){
-	init_priv();
+	init_priv(); 
 }
 
 void LiquidCrystal_I2C::init_priv()
@@ -245,7 +243,7 @@ void LiquidCrystal_I2C::write4bits(uint8_t value) {
 
 void LiquidCrystal_I2C::expanderWrite(uint8_t _data){                                        
 	i2c_begin_write(_Addr);
-	printIIC((int)(_data) | _backlightval);
+	i2c_write((int)(_data) | _backlightval);
 	i2c_end();
 }
 

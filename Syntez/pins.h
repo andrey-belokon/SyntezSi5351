@@ -21,21 +21,21 @@ class InputPullUpPin {
 
 class InputAnalogPin {
   private:
-	  int pin,min_val,max_val,value,pool_interval;
+	  int pin,min_val,max_val,value,rfac,pool_interval;
 	  long last_pool_tm;
   public:
-	  InputAnalogPin(int _pin, int def_value, int _min_val, int _max_val, int _pool_interval = 20):
+	  InputAnalogPin(int _pin, int def_value, int _min_val, int _max_val, int _rfac=0, int _pool_interval = 20):
 	  pin(_pin),min_val(_min_val),max_val(_max_val),value(def_value),
-	  pool_interval(_pool_interval),last_pool_tm(0) {}
+	  rfac(_rfac),pool_interval(_pool_interval),last_pool_tm(0) {}
     void setup();
     int Read();
 };
 
-class OutputPin {
+class OutputBinPin {
   private:
 	  int pin,active_level,def_value,state;
   public:
-	  OutputPin(int _pin, int _def_value, int _active_level):
+	  OutputBinPin(int _pin, int _def_value, int _active_level):
 	  pin(_pin),active_level(_active_level),def_value(_def_value),state(-1) {}
     void setup();
     void Write(bool value);

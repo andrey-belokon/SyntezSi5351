@@ -18,7 +18,9 @@ class Display_1602_I2C: public TRXDisplay {
 	  Display_1602_I2C (int i2c_addr): lcd(i2c_addr,16,2) {}
 	  void setup();
 	  void Draw(TRX& trx);
-	  void DrawCalibration(const char* title, long value, bool hi_res);
+    void clear() { lcd.clear(); }
+    void DrawMenu(const char* title, const char** items, byte selected, const char* help, byte fontsize);
+    void DrawCalibration(const char* title, long value, bool hi_res, const char* help = NULL);
 };
 
 #endif

@@ -14,7 +14,7 @@
 #define BAND_COUNT 9
 
 const struct {
-  int   mc;
+  byte   mc;
   long  start, startSSB, end;
   byte sideband;
 } Bands[BAND_COUNT] = {
@@ -54,7 +54,7 @@ typedef enum {
 // состояние VFO для диапазона
 typedef struct {
   long VFO[2];    // VFO freq A&B
-  int  VFO_Index; // 0-A, 1-B
+  byte  VFO_Index; // 0-A, 1-B
   byte sideband;
   byte AttPre;    // 0-nothing; 1-ATT; 2-Preamp
   bool Split;
@@ -70,7 +70,7 @@ class TRX {
     bool RIT;
     int RIT_Value;
 	  bool QRP;
-	  byte SMeter; // 1..9
+	  byte SMeter; // 0..15 
 
 	  TRX();
     void SwitchToBand(int band);
@@ -83,9 +83,12 @@ class TRX {
 
 class TRXDisplay {
   public:
-	  virtual void setup() {}
+    virtual void setup() {}
+    virtual void reset() {}
 	  virtual void Draw(TRX& trx) {}
-	  virtual void DrawCalibration(const char* title, long value, bool hi_res);
+    virtual void clear() {}
+    virtual void DrawMenu(const char* title, const char** items, byte selected, const char* help, byte fontsize);
+	  virtual void DrawCalibration(const char* title, long value, bool hi_res, const char* help);
 };
 
 #endif
