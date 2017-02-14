@@ -19,16 +19,19 @@ class InputPullUpPin {
     bool Read();
 };
 
+// return raw ADC result for internal 1.1v voltage reference
+int ReadV11Ref();
+
 class InputAnalogPin {
   private:
-	  int pin,min_val,max_val,value,rfac,pool_interval;
-	  long last_pool_tm;
+	  int pin,value,rfac;
   public:
-	  InputAnalogPin(int _pin, int def_value, int _min_val, int _max_val, int _rfac=0, int _pool_interval = 20):
-	  pin(_pin),min_val(_min_val),max_val(_max_val),value(def_value),
-	  rfac(_rfac),pool_interval(_pool_interval),last_pool_tm(0) {}
+	  InputAnalogPin(int _pin, int _rfac=0):
+	  pin(_pin),value(0),rfac(_rfac) {}
     void setup();
     int Read();
+    // return raw ADC data 0..1023
+    int ReadRaw();
 };
 
 class OutputBinPin {

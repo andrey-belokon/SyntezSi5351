@@ -23,7 +23,8 @@
 #include "si5351a.h"
 #include "i2c.h"
 
-#define MENU_DELAY  1000      // задержка вызова меню в сек
+#define RIT_MAX_VALUE   1200      // максимальная расстройка
+#define MENU_DELAY      1000      // задержка вызова меню в сек
 
 // мапинг сканкодов на команды
 const TRXCommand KeyMap[4][4] = {
@@ -54,8 +55,8 @@ int SMeterMap[15];
 
 InputPullUpPin inTX(4);
 InputPullUpPin inTune(5);
-InputAnalogPin inRIT(A0,0,-1000,1000,5);
-InputAnalogPin inSMeter(A1,0,0,1000);
+InputAnalogPin inRIT(A0,5);
+InputAnalogPin inSMeter(A1);
 OutputBinPin outTX(6,false,HIGH);
 OutputBinPin outQRP(7,false,HIGH);
 OutputTonePin outTone(8,1000);
@@ -331,7 +332,7 @@ void loop()
     trx.ExecCommand(cmd);
   }
   if (trx.RIT)
-    trx.RIT_Value = inRIT.Read();
+    trx.RIT_Value = (long)inRIT.ReadRaw()*2*RIT_MAX_VALUE/1024-RIT_MAX_VALUE;
   UpdateFreq();
   outQRP.Write(trx.QRP || tune);
   outTone.Write(tune);

@@ -22,13 +22,63 @@ void InputAnalogPin::setup() {
     pinMode(pin, INPUT); 
 }
 
-int InputAnalogPin::Read() {
-  if (pin >= 0 && millis()-last_pool_tm >= pool_interval) {
-    int new_value = (max_val-min_val)*(long)analogRead(pin)/1024L + min_val;
-    if (abs(new_value-value) > rfac)
-      value=new_value;
-    last_pool_tm = millis();
+// code from http://tim4dev.com/arduino-secret-true-voltmeter/
+// rewriten to non-float style
+int ReadV11Ref() 
+{
+  int acc = 0;
+
+  analogReference(DEFAULT);
+  // Read 1.1V reference against AVcc
+  // set the reference to Vcc and the measurement to the internal 1.1V reference
+  #if defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+      ADMUX = _BV(REFS0) | _BV(MUX4) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+  #elif defined (__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
+      ADMUX = _BV(MUX5) | _BV(MUX0);
+  #elif defined (__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
+      ADMUX = _BV(MUX3) | _BV(MUX2);
+  #else
+      // works on an Arduino 168 or 328
+      ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+  #endif
+
+  delay(3); // Wait for Vref to settle
+
+  for (byte i=0; i < 3; i++) {
+    ADCSRA |= _BV(ADSC); // Start conversion
+    while (bit_is_set(ADCSRA,ADSC)); // measuring
+    uint8_t low  = ADCL; // must read ADCL first - it then locks ADCH
+    uint8_t high = ADCH; // unlocks both
+    acc += (high<<8) | low;
+    delay(3);
   }
+  return acc/3;
+}
+
+int InputAnalogPin::Read() 
+{
+  int vref = ReadV11Ref(); 
+  //int vref = 1100L*1024L/5000L; debug
+  analogReference(DEFAULT);
+  int new_value = 0;
+  new_value += analogRead(pin);
+  new_value += analogRead(pin);
+  new_value += analogRead(pin);
+  new_value = (long)new_value *1100L/vref/3;
+  if (abs(new_value-value) > rfac)
+    value=new_value;
+  return value;
+}
+
+int InputAnalogPin::ReadRaw()
+{
+  int new_value = 0;
+  new_value += analogRead(pin);
+  new_value += analogRead(pin);
+  new_value += analogRead(pin);
+  new_value = new_value/3;
+  if (abs(new_value-value) > rfac)
+    value=new_value;
   return value;
 }
 

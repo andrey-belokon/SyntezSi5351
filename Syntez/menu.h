@@ -128,7 +128,7 @@ void ShowSMeterMenu()
   disp.clear();
   PrintSMeterData(smeter,buf,items);
   while (1) {
-    sprintf(title,"AGC=%u",inSMeter.Read());
+    sprintf(title,"AGC=%u   ",inSMeter.Read());
     disp.DrawMenu(title,(const char**)items,selected,help,1);
     int keycode=keypad.Read();
     if (keycode >= 0) {
