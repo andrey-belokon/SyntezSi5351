@@ -274,7 +274,10 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
         v=-v;
       }
       else buf[4]='+'; 
-      sprintf(buf+5,"%dHz ",v);
+      sprintf(buf+5,"%dHz",v);
+      for (byte i=5; i<=10; i++)
+        if (buf[i] == 0) buf[i]=' ';
+      buf[11]=0;
     }
     tft.print(buf);
     tft.setTextSize(1);

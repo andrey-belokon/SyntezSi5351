@@ -14,7 +14,8 @@
 
 class KeypadI2C {
   private:
-    int i2c_addr;
+    byte i2c_addr;
+    byte found;
     int last_code;
     long last_code_tm;
     

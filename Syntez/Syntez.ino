@@ -44,8 +44,8 @@ Encoder encoder(360);
 #endif
 TRX trx;
 
-#define SI5351_XTAL_FREQ        250000000  // 0.1Hz resolution (10x mutiplier)
-#define SI5351_CALIBRATION_FREQ 30000000   // частота на которой проводится калибровка
+#define SI5351_XTAL_FREQ         270000000  // 0.1Hz resolution (10x mutiplier)
+#define SI5351_CALIBRATION_FREQ  30000000   // частота на которой проводится калибровка
 long EEMEM Si5351_correction_EEMEM = 0;
 long Si5351_correction;
 Si5351 vfo;
@@ -78,7 +78,6 @@ void setup()
   eeprom_read_block(&Si5351_correction, &Si5351_correction_EEMEM, sizeof(Si5351_correction));
   eeprom_read_block(SMeterMap, SMeterMap_EEMEM, sizeof(SMeterMap));
   //Serial.begin(9600);
-  //Serial.print(SI5351_XTAL_val);
   vfo.setup(1,0,0);
   vfo.set_xtal_freq(SI5351_XTAL_FREQ+Si5351_correction);
   encoder.setup();
@@ -91,7 +90,6 @@ void setup()
   outTone.setup();
   disp.setup();
   trx.SwitchToBand(1);
-  //RTC_Write(0x0,0x03,0x21,0x5,0x10,0x2,0x17);
 }
 
 // необходимо раскоментировать требуемую моду (только одну!)
@@ -108,6 +106,7 @@ void setup()
 
 // одна промежуточная частота. требуемая боковая формируется на счет переключения
 // первого гетеродина "сверху" (IF=VFO-Fc) или "снизу" (IF=Fc-VFO)
+// подразумевается что используется USB КФ 
 // второй и третий гетеродины отключены. 
 // режим предназначен для трактов где второй гетеродин кварцованый на фиксированную чатсоту
 //#define MODE_SINGLE_IF_VFOSB
@@ -131,7 +130,7 @@ void setup()
 // две промежуточные частоты. гетеродины формируются 1й - CLK0, 2й - CLK1, 3й - CLK2
 // первый гетеродин всегда "сверху". выбор боковой полосы производится сменой частоты
 // второго гетеродина для режимов MODE_DOUBLE_IF_USB/LSB, или сменой частоты третьего гетеродина MODE_DOUBLE_IF
-// в режиме MODE_DOUBLE_IF второй гетеродин ниже первой ПЧ
+// в режиме MODE_DOUBLE_IF второй гетеродин выше первой ПЧ
 //#define MODE_DOUBLE_IF
 //#define MODE_DOUBLE_IF_USB
 //#define MODE_DOUBLE_IF_LSB
@@ -176,35 +175,35 @@ void UpdateFreq() {
 
 #ifdef MODE_SINGLE_IF_VFOSB
     long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
-    long IFreq = (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB);
-    if (trx.state.sideband != FilterSideband) {
-      f+=IFreq;
+    if (trx.state.sideband == LSB) {
+      f+=IFreq_USB;
     } else {
-      f = (IFreq > f ? IFreq-f : f-IFreq);
+      f = (IFreq_USB > f ? IFreq_USB-f : f-IFreq_USB);
     }
   vfo.set_freq(CLK0_MULT*f,0,0);
 #endif
 
 #ifdef MODE_SINGLE_IF
-  vfo.set_freq(
-    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
-    CLK1_MULT*(trx.state.sideband == USB ? IFreq_USB : IFreq_LSB),
+  vfo.set_freq( // инверсия боковой - гетеродин сверху
+    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+    CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB),
     0
   );
 #endif
 
 #ifdef MODE_SINGLE_IF_RXTX
-  long f = CLK1_MULT*(trx.state.sideband == USB ? IFreq_USB : IFreq_LSB);
+  long f = CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB); // инверсия боковой - гетеродин сверху
   vfo.set_freq(
-    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
     trx.TX ? 0 : f,
     trx.TX ? f : 0
   );
 #endif
 
 #ifdef MODE_SINGLE_IF_SWAP
-  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
-  long f2 = CLK1_MULT*(trx.state.sideband == USB ? IFreq_USB : IFreq_LSB);
+  // инверсия боковой - гетеродин сверху
+  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
+  long f2 = CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB);
   vfo.set_freq(
     trx.TX ? f2 : f1,
     trx.TX ? f1 : f2,
@@ -213,10 +212,10 @@ void UpdateFreq() {
 #endif
 
 #ifdef MODE_DOUBLE_IF
-  long IFreq = (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB); // инверсия боковой!!
+  long IFreq = (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB);
   vfo.set_freq(
     CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
-    CLK1_MULT*(IFreqEx - IFreq),
+    CLK1_MULT*(IFreqEx + IFreq),
     CLK2_MULT*(IFreq)
   );
 #endif
@@ -238,9 +237,9 @@ void UpdateFreq() {
 #endif
 
 #ifdef MODE_DOUBLE_IF_SWAP23
-  long IFreq = (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB); // инверсия боковой!!
+  long IFreq = (trx.state.sideband == USB ? IFreq_USB : IFreq_LSB); 
   long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
-  long f2 = CLK1_MULT*(IFreqEx - IFreq);
+  long f2 = CLK1_MULT*(IFreqEx + IFreq);
   long f3 = CLK2_MULT*(IFreq);
   vfo.set_freq(
     f1,
