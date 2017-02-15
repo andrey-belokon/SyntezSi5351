@@ -3,13 +3,15 @@
 
 void KeypadI2C::setup() {
   i2c_init();
-  if (found=i2c_device_found(i2c_addr))
+  if (i2c_device_found(i2c_addr))
     pcf8574_write(0xFF);
+  else
+    i2c_addr=0;
 }
 
 int KeypadI2C::read_scan() 
 {
-  if (found) {
+  if (i2c_addr) {
     pcf8574_write(0xFF);
     for (byte row=0; row <= 2; row++) {
       pcf8574_write(~(1<<row));
@@ -26,7 +28,7 @@ int KeypadI2C::read_scan()
 
 int KeypadI2C::Read() 
 {
-  if (!found) return -1;
+  if (i2c_addr == 0) return -1;
   if (millis()-last_code_tm < 50) return -1;
   int code = read_scan(); 
   if (code == last_code) return -1;
