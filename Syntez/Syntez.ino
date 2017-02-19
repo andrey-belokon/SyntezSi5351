@@ -94,6 +94,8 @@ void setup()
 
 // необходимо раскоментировать требуемую моду (только одну!)
 
+//*****************************************************************************************//
+
 // режим прямого преобразования. частота формируется на 1ом выводе. установить
 // CLK0_MULT в значение 1/2/4 в зависимости от коэффициента деления частоты гетеродина
 // второй и третий гетеродины отключены
@@ -101,31 +103,27 @@ void setup()
 
 // режим прямого преобразования с формированием квадратурн
 // частота формируется на выводах CLK0,CLK1 со сдвигом фаз 90град
-// CLK0_MULT не используется. CLK2 отключен. Минимальная частота настройки 2MHz (по даташиту 4MHz)
+// CLK2 отключен. Минимальная частота настройки 2MHz (по даташиту 4MHz) может зависеть от экземпляра Si5351
 //#define MODE_DC_QUADRATURE
 
-// одна промежуточная частота. требуемая боковая формируется на счет переключения
-// первого гетеродина "сверху" (IF=VFO-Fc) или "снизу" (IF=Fc-VFO)
-// подразумевается что используется USB КФ 
-// второй и третий гетеродины отключены. 
-// режим предназначен для трактов где второй гетеродин кварцованый на фиксированную чатсоту
-//#define MODE_SINGLE_IF_VFOSB
+//*****************************************************************************************//
 
-// одна промежуточная частота. первый гетеродин на выходе CLK0 всегда "сверху" (IF=VFO-Fc)
-// требуемая боковая формируется на счет переключения второго гетеродина на выходе CLK1
-// третий гетеродин отключен
+// одна промежуточная частота. требуемая боковая формируется на счет переключения
+// первого гетеродина с инверсией боковой либо без инверсии. второй гетеродин формируется на выходе CLK1
+// тип КФ зависит от параметров IFreq_LSB/IFreq_USB. если фильтр симметричный (определены две частоты IFreq)
+// то частота первого гетеродина всегда сверху (меньше пораженок) а боковая выбирается изменением частоты второго гетеродина
 //#define MODE_SINGLE_IF
 
-// режим аналогичен MODE_SINGLE_IF но в второй гетеродин генерируется на CLK1 при RX и
+// аналогично MODE_SINGLE_IF но второй гетеродин генерируется на CLK1 при RX и
 // на CLK2 в режиме TX
-// для трактов котрые имеют отдельные смесители для формирования/детектирования сигнала
 #define MODE_SINGLE_IF_RXTX
 
-// режим аналогичен MODE_SINGLE_IF но в режиме передачи гетеродины комутируются,
+// аналогично MODE_SINGLE_IF_VFOSB но в режиме передачи гетеродины комутируются,
 // тоесть первый формируется на CLK1, а второй - на CLK0
 // для трактов где необходимо переключение гетеродинов при смене RX/TX
-// третий гетеродин отключен
 //#define MODE_SINGLE_IF_SWAP
+
+//*****************************************************************************************//
 
 // две промежуточные частоты. гетеродины формируются 1й - CLK0, 2й - CLK1, 3й - CLK2
 // первый гетеродин всегда "сверху". выбор боковой полосы производится сменой частоты
@@ -149,14 +147,18 @@ const long CLK0_MULT = 1;
 const long CLK1_MULT = 1;
 const long CLK2_MULT = 1;
 
-// частота второго/третьего гетеродина - на 300Hz ниже/выше от точки точки -3dB на нижнем/верхнем скате фильтра 
-const long IFreq_USB = 9828200;
-const long IFreq_LSB = 9831500;
+// следующие дефайны определяют какой у нас фильтр - нижняя либо верхняя боковая
+// они задают частоту второго (или третьего) гетеродина
+// если фильтр имеет симметричные скаты (например мостовой) либо высокое подавоение 
+// по обеим скатам то раскоментарить и определить оба дефайна
+//#define IFreq_USB   9828200L
+#define IFreq_LSB   9831300L
 
 // первая промежуточная частота для трактов с двойным преобразованием частоты
 const long IFreqEx = 45000000;
 
-void UpdateFreq() {
+void UpdateFreq() 
+{
 
 #ifdef MODE_DC
   vfo.set_freq(
@@ -173,42 +175,107 @@ void UpdateFreq() {
   );
 #endif
 
-#ifdef MODE_SINGLE_IF_VFOSB
+#ifdef MODE_SINGLE_IF
+  #if defined(IFreq_USB) && defined(IFreq_LSB)
+    vfo.set_freq( // инверсия боковой - гетеродин сверху
+      CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+      CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB),
+      0
+    );
+  #elif defined(IFreq_USB)
     long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
     if (trx.state.sideband == LSB) {
       f+=IFreq_USB;
     } else {
-      f = (IFreq_USB > f ? IFreq_USB-f : f-IFreq_USB);
+      f = abs(IFreq_USB-f);
     }
-  vfo.set_freq(CLK0_MULT*f,0,0);
-#endif
-
-#ifdef MODE_SINGLE_IF
-  vfo.set_freq( // инверсия боковой - гетеродин сверху
-    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
-    CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB),
-    0
-  );
+    vfo.set_freq(CLK0_MULT*f,CLK1_MULT*IFreq_USB,0);
+  #elif defined(IFreq_LSB)
+    long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
+    if (trx.state.sideband == USB) {
+      f+=IFreq_LSB;
+    } else {
+      f = abs(IFreq_LSB-f);
+    }
+    vfo.set_freq(CLK0_MULT*f,CLK1_MULT*IFreq_LSB,0);
+  #else
+    #error You must define IFreq_LSB/IFreq_USB
+  #endif 
 #endif
 
 #ifdef MODE_SINGLE_IF_RXTX
-  long f = CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB); // инверсия боковой - гетеродин сверху
-  vfo.set_freq(
-    CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
-    trx.TX ? 0 : f,
-    trx.TX ? f : 0
-  );
+  #if defined(IFreq_USB) && defined(IFreq_LSB)
+    long f = CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB);
+    vfo.set_freq( // инверсия боковой - гетеродин сверху
+      CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
+      trx.TX ? 0 : f,
+      trx.TX ? f : 0
+    );
+  #elif defined(IFreq_USB)
+    long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
+    if (trx.state.sideband == LSB) {
+      f+=IFreq_USB;
+    } else {
+      f = abs(IFreq_USB-f);
+    }
+    vfo.set_freq(
+      CLK0_MULT*f,
+      trx.TX ? 0 : CLK1_MULT*IFreq_USB,
+      trx.TX ? CLK1_MULT*IFreq_USB : 0
+    );
+  #elif defined(IFreq_LSB)
+    long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
+    if (trx.state.sideband == USB) {
+      f+=IFreq_LSB;
+    } else {
+      f = abs(IFreq_LSB-f);
+    }
+    vfo.set_freq(
+      CLK0_MULT*f,
+      trx.TX ? 0 : CLK1_MULT*IFreq_LSB,
+      trx.TX ? CLK1_MULT*IFreq_LSB : 0
+    );
+  #else
+    #error You must define IFreq_LSB/IFreq_USB
+  #endif 
 #endif
 
 #ifdef MODE_SINGLE_IF_SWAP
-  // инверсия боковой - гетеродин сверху
-  long f1 = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
-  long f2 = CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB);
-  vfo.set_freq(
-    trx.TX ? f2 : f1,
-    trx.TX ? f1 : f2,
-    0
-  );
+  #if defined(IFreq_USB) && defined(IFreq_LSB)
+    long vfo = CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + (trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB) + (trx.RIT && !trx.TX ? trx.RIT_Value : 0));
+    long f = CLK1_MULT*(trx.state.sideband == LSB ? IFreq_USB : IFreq_LSB);
+    vfo.set_freq( // инверсия боковой - гетеродин сверху
+      trx.TX ? f : vfo,
+      trx.TX ? vfo : f,
+      0
+    );
+  #elif defined(IFreq_USB)
+    long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
+    if (trx.state.sideband == LSB) {
+      f+=IFreq_USB;
+    } else {
+      f = abs(IFreq_USB-f);
+    }
+    vfo.set_freq(
+      trx.TX ? CLK1_MULT*IFreq_USB : CLK0_MULT*f,
+      trx.TX ? CLK0_MULT*f : CLK1_MULT*IFreq_USB,
+      0
+    );
+  #elif defined(IFreq_LSB)
+    long f = trx.state.VFO[trx.GetVFOIndex()] + (trx.RIT && !trx.TX ? trx.RIT_Value : 0);
+    if (trx.state.sideband == USB) {
+      f+=IFreq_LSB;
+    } else {
+      f = abs(IFreq_LSB-f);
+    }
+    vfo.set_freq(
+      trx.TX ? CLK1_MULT*IFreq_LSB : CLK0_MULT*f,
+      trx.TX ? CLK0_MULT*f : CLK1_MULT*IFreq_LSB,
+      0
+    );
+  #else
+    #error You must define IFreq_LSB/IFreq_USB
+  #endif 
 #endif
 
 #ifdef MODE_DOUBLE_IF
