@@ -10,9 +10,15 @@
 #include <PDQ_GFX.h>        // PDQ: Core graphics library
 #include <PDQ_ILI9341.h>      // PDQ: Hardware-specific driver library
 
+#ifdef GFX_FONT_PACKED
+#include "font\Gadugi58.pck.h"
+#include "font\Tahoma28.pck.h"
+#include "font\Tahoma18.pck.h"
+#else
 #include "font\Gadugi58.h"
 #include "font\Tahoma28.h"
 #include "font\Tahoma18.h"
+#endif
 
 #define color_rgb(r,g,b) (((r)<<11)|((g)<<5)|(b))
 #define ILI9341_DARKGRAY color_rgb(0x3,0x7,0x3)
