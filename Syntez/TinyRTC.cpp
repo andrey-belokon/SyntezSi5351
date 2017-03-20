@@ -19,7 +19,7 @@ void RTC_Write(RTCData* data)
   }
 }
 
-void RTC_Read(void *data, byte start, byte count)
+void RTC_Read(void *data, uint8_t start, uint8_t count)
 {
   if (i2c_begin_write(DS1307_I2C_ADDRESS)) {
     i2c_write(start);

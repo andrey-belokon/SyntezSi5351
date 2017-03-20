@@ -42,43 +42,8 @@ void si5351_write_reg(uint8_t reg, uint8_t data)
   i2c_end();
 }
 
-//
-// Set up specified PLL with mult, num and denom
-// mult is 15..90
-// num is 0..1,048,575 (0xFFFFF)
-// denom is 0..1,048,575 (0xFFFFF)
-//
-void si5351_setup_pll(uint8_t pll, uint8_t a, uint32_t b, uint32_t c)
+void si5351_write_regs(uint8_t synth, uint32_t P1, uint32_t P2, uint32_t P3, uint8_t rDiv)
 {
-  uint32_t t = 128*b / c;
-  uint32_t P1 = (uint32_t)(128 * (uint32_t)(a) + t - 512);
-  uint32_t P2 = (uint32_t)(128 * b - c * t);
-  uint32_t P3 = c;
-  
-  i2c_begin_write(SI5351_I2C_ADDR);
-  i2c_write(pll);
-  i2c_write(((uint8_t*)&P3)[1]);
-  i2c_write((uint8_t)P3);
-  i2c_write(((uint8_t*)&P1)[2] & 0x3);
-  i2c_write(((uint8_t*)&P1)[1]);
-  i2c_write((uint8_t)P1);
-  i2c_write(((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-  i2c_write(((uint8_t*)&P2)[1]);
-  i2c_write((uint8_t)P2);
-  i2c_end();
-}
-
-//
-// Set up MultiSynth with integer divider and R divider
-// R divider is the bit value which is OR'ed onto the appropriate register, it is a #define in si5351a.h
-//
-void si5351_setup_msynth_int(uint8_t synth, uint32_t divider, uint8_t rDiv)
-{
-  // P2 = 0, P3 = 1 forces an integer value for the divider
-  uint32_t P1 = 128 * divider - 512;
-  uint32_t P2 = 0;
-  uint32_t P3 = 1;
-  
   i2c_begin_write(SI5351_I2C_ADDR);
   i2c_write(synth);
   i2c_write(((uint8_t*)&P3)[1]);
@@ -100,32 +65,29 @@ void si5351_setup_msynth_int(uint8_t synth, uint32_t divider, uint8_t rDiv)
 void si5351_setup_msynth(uint8_t synth, uint8_t a, uint32_t b, uint32_t c, uint8_t rDiv)
 {
   uint32_t t = 128*b / c;
-  uint32_t P1 = (uint32_t)(128 * (uint32_t)(a) + t - 512);
-  uint32_t P2 = (uint32_t)(128 * b - c * t);
-  uint32_t P3 = c;
-  
-  i2c_begin_write(SI5351_I2C_ADDR);
-  i2c_write(synth);
-  i2c_write(((uint8_t*)&P3)[1]);
-  i2c_write((uint8_t)P3);
-  i2c_write((((uint8_t*)&P1)[2] & 0x3) | rDiv);
-  i2c_write(((uint8_t*)&P1)[1]);
-  i2c_write((uint8_t)P1);
-  i2c_write(((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-  i2c_write(((uint8_t*)&P2)[1]);
-  i2c_write((uint8_t)P2);
-  i2c_end();
+  si5351_write_regs(
+    synth,
+    (uint32_t)(128 * (uint32_t)(a) + t - 512),
+    (uint32_t)(128 * b - c * t),
+    c,
+    rDiv
+  );
+}
 
-/*
-  si5351_write_reg(synth + 0, ((uint8_t*)&P3)[1]);
-  si5351_write_reg(synth + 1, (uint8_t)P3);
-  si5351_write_reg(synth + 2, (((uint8_t*)&P1)[2] & 0x3) | rDiv);
-  si5351_write_reg(synth + 3, ((uint8_t*)&P1)[1]);
-  si5351_write_reg(synth + 4, (uint8_t)P1);
-  si5351_write_reg(synth + 5, ((P3 & 0x000F0000) >> 12) | ((P2 & 0x000F0000) >> 16));
-  si5351_write_reg(synth + 6, ((uint8_t*)&P2)[1]);
-  si5351_write_reg(synth + 7, (uint8_t)P2);
-*/  
+//
+// Set up MultiSynth with integer divider and R divider
+// R divider is the bit value which is OR'ed onto the appropriate register, it is a #define in si5351a.h
+//
+void si5351_setup_msynth_int(uint8_t synth, uint32_t divider, uint8_t rDiv)
+{
+  // P2 = 0, P3 = 1 forces an integer value for the divider
+  si5351_write_regs(
+    synth,
+    128 * divider - 512,
+    0,
+    1,
+    rDiv
+  );
 }
 
 void Si5351::setup(uint8_t _power0, uint8_t _power1, uint8_t _power2)
@@ -218,7 +180,7 @@ void Si5351::update_freq0(uint8_t* need_reset_pll)
   mult = pll_freq*10 / xtal_freq;
   num = (pll_freq - (uint64_t)mult*xtal_freq/10)*FRAC_DENOM*10/xtal_freq;
 
-  si5351_setup_pll(SI_SYNTH_PLL_A, mult, num, FRAC_DENOM);
+  si5351_setup_msynth(SI_SYNTH_PLL_A, mult, num, FRAC_DENOM, 0);
 
   if (divider != freq0_div || rdiv != freq0_rdiv) {
     si5351_setup_msynth_int(SI_SYNTH_MS_0, divider, R_DIV(rdiv));
@@ -264,7 +226,7 @@ void Si5351::update_freq12(uint8_t freq1_changed, uint8_t* need_reset_pll)
       mult = pll_freq*10 / xtal_freq;
       num = (pll_freq - (uint64_t)mult*xtal_freq/10)*FRAC_DENOM*10/xtal_freq;
     
-      si5351_setup_pll(SI_SYNTH_PLL_B, mult, num, FRAC_DENOM);
+      si5351_setup_msynth(SI_SYNTH_PLL_B, mult, num, FRAC_DENOM, 0);
       if (divider != freq1_div || rdiv != freq1_rdiv) {
         si5351_setup_msynth_int(SI_SYNTH_MS_1, divider, R_DIV(rdiv));
         si5351_write_reg(SI_CLK1_CONTROL, 0x4C | power1 | SI_CLK_SRC_PLL_B);
@@ -315,7 +277,7 @@ void Si5351::update_freq12(uint8_t freq1_changed, uint8_t* need_reset_pll)
     mult = pll_freq*10 / xtal_freq;
     num = (pll_freq - (uint64_t)mult*xtal_freq/10)*FRAC_DENOM*10/xtal_freq;
   
-    si5351_setup_pll(SI_SYNTH_PLL_B, mult, num, FRAC_DENOM);
+    si5351_setup_msynth(SI_SYNTH_PLL_B, mult, num, FRAC_DENOM, 0);
   
     if (divider != freq2_div || rdiv != freq2_rdiv) {
       si5351_setup_msynth_int(SI_SYNTH_MS_2, divider, R_DIV(rdiv));
@@ -362,7 +324,7 @@ void Si5351::update_freq01_quad(uint8_t* need_reset_pll)
   mult = pll_freq*10 / xtal_freq;
   num = (pll_freq - (uint64_t)mult*xtal_freq/10)*FRAC_DENOM*10/xtal_freq;
 
-  si5351_setup_pll(SI_SYNTH_PLL_A, mult, num, FRAC_DENOM);
+  si5351_setup_msynth(SI_SYNTH_PLL_A, mult, num, FRAC_DENOM, 0);
 
   if (divider != freq0_div) {
     si5351_setup_msynth_int(SI_SYNTH_MS_0, divider, 0);
@@ -407,7 +369,7 @@ void Si5351::update_freq2(uint8_t* need_reset_pll)
   mult = pll_freq*10 / xtal_freq;
   num = (pll_freq - (uint64_t)mult*xtal_freq/10)*FRAC_DENOM*10/xtal_freq;
 
-  si5351_setup_pll(SI_SYNTH_PLL_B, mult, num, FRAC_DENOM);
+  si5351_setup_msynth(SI_SYNTH_PLL_B, mult, num, FRAC_DENOM, 0);
 
   if (divider != freq2_div || rdiv != freq2_rdiv) {
     si5351_setup_msynth_int(SI_SYNTH_MS_2, divider, R_DIV(rdiv));

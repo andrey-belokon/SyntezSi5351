@@ -1,6 +1,7 @@
 #include "disp_ILI9341.h"
 #include "TinyRTC.h"
 #include <SPI.h>        // must include this here (or else IDE can't find it)                                         
+#include "utils.h"
 
 #define  ILI9341_CS_PIN    10      // <= /CS pin (chip-select, LOW to get attention of ILI9341, HIGH and it ignores SPI bus)
 #define ILI9341_DC_PIN    9     // <= DC pin (1=data or 0=command indicator line) also called RS
@@ -71,7 +72,7 @@ void Display_ILI9341_SPI::reset()
   cur_attpre=0xFF;
   cur_band=-1;
   init_smetr=0;
-  for (byte i=0; i < 15; i++) cur_sm[i]=0;
+  for (uint8_t i=0; i < 15; i++) cur_sm[i]=0;
   cur_ritval=0xffff;
   cur_cw=0xff;
   last_tmtm=0;
@@ -125,21 +126,18 @@ void drawFreq2(int x, int y, long f2, color_t c)
   tft.print(buf);
 }
 
-void drawBtn(int x, int y, int w, int h, const char *title, int on, color_t cframe, color_t ctext)
+void drawBtn(int x, int y, uint8_t w, uint8_t h, const char *title, color_t cframe, color_t ctext)
 {
-  int16_t x1,y1;
-  uint16_t w1,h1;
   if (cframe == ILI9341_BLACK)
+  {
     tft.fillRect(x,y,w,h,ILI9341_BLACK);
-  else {
-    if (on) {
-      tft.fillRoundRect(x,y,w,h,5,cframe);
-    } else {
-      tft.fillRect(x,y,w,h,ILI9341_BLACK);
-      tft.drawRoundRect(x,y,w,h,5,cframe);
-    }
+  } else {
+    tft.fillRoundRect(x,y,w,h,5,cframe); // +400 byte of code
+    //tft.fillRect(x,y,w,h,cframe);
   }
   if (*title) {
+    int16_t x1,y1;
+    uint16_t w1,h1;
     tft.setTextColor(ctext);
     tft.setFont(&Tahoma18);
     tft.getTextBounds((char *)title,x,y,&x1,&y1,&w1,&h1);
@@ -232,30 +230,30 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
   if (trx.state.AttPre != cur_attpre) {
     switch (cur_attpre=trx.state.AttPre) {
       case 0:
-        drawBtn(0,BTN_Y,66,36,"ATT",1,ILI9341_BLACK,ILI9341_DARKGRAY);
+        drawBtn(0,BTN_Y,66,36,"ATT",ILI9341_BLACK,ILI9341_DARKGRAY);
         break;
       case 1:
-        drawBtn(0,BTN_Y,66,36,"ATT",1,ILI9341_BLUE,ILI9341_WHITE);
+        drawBtn(0,BTN_Y,66,36,"ATT",ILI9341_BLUE,ILI9341_WHITE);
         break;
       case 2:
-        drawBtn(0,BTN_Y,66,36,"PRE",1,ILI9341_GREEN,ILI9341_GRAY);
+        drawBtn(0,BTN_Y,66,36,"PRE",ILI9341_GREEN,ILI9341_GRAY);
         break;
     }  
   }
 
   if (trx.QRP != cur_qrp) {
     if (cur_qrp=trx.QRP) 
-      drawBtn(85,BTN_Y,66,36,"QRP",1,ILI9341_BLUE,ILI9341_WHITE);
+      drawBtn(85,BTN_Y,66,36,"QRP",ILI9341_BLUE,ILI9341_WHITE);
     else
-      drawBtn(85,BTN_Y,66,36,"QRP",1,ILI9341_BLACK,ILI9341_DARKGRAY);
+      drawBtn(85,BTN_Y,66,36,"QRP",ILI9341_BLACK,ILI9341_DARKGRAY);
   }
   
   if (trx.RIT != cur_rit) {
     if (cur_rit=trx.RIT) {
-      drawBtn(169,BTN_Y,66,36,"RIT",1,ILI9341_BLUE,ILI9341_WHITE);
+      drawBtn(169,BTN_Y,66,36,"RIT",ILI9341_BLUE,ILI9341_WHITE);
       cur_ritval=0xffff;
     } else {
-      drawBtn(169,BTN_Y,66,36,"RIT",1,ILI9341_BLACK,ILI9341_DARKGRAY);
+      drawBtn(169,BTN_Y,66,36,"RIT",ILI9341_BLACK,ILI9341_DARKGRAY);
       tft.fillRect(10,(cur_vfo_idx ? FREQ_Y+2 : FREQ_Y+82),120,15,ILI9341_BLACK);
     }
   }
@@ -280,7 +278,10 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
         v=-v;
       }
       else buf[4]='+'; 
-      sprintf(buf+5,"%dHz",v);
+      //sprintf(buf+5,"%dHz",v);
+      //itoa(v,buf+5,10);
+      cwr_str(cwr_int(buf+5,v),"Hz");
+      //strcat(buf+5,"Hz");
       for (byte i=5; i<=10; i++)
         if (buf[i] == 0) buf[i]=' ';
       buf[11]=0;
@@ -291,9 +292,9 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
   
   if (trx.state.Split != cur_split) {
     if (cur_split=trx.state.Split)
-      drawBtn(254,BTN_Y,66,36,"SPL",1,ILI9341_BLUE,ILI9341_WHITE);
+      drawBtn(254,BTN_Y,66,36,"SPL",ILI9341_BLUE,ILI9341_WHITE);
     else
-      drawBtn(254,BTN_Y,66,36,"SPL",0,ILI9341_BLACK,ILI9341_DARKGRAY);
+      drawBtn(254,BTN_Y,66,36,"SPL",ILI9341_BLACK,ILI9341_DARKGRAY);
   }
 
   if (trx.Lock != cur_lock) {
@@ -309,9 +310,9 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
 
   if (trx.TX != cur_tx) {
     if (cur_tx=trx.TX) 
-      drawBtn(0,0,40,36,"TX",1,ILI9341_RED,ILI9341_YELLOW);
+      drawBtn(0,0,40,36,"TX",ILI9341_RED,ILI9341_YELLOW);
     else
-      drawBtn(0,0,40,36,"RX",1,ILI9341_BLACK,ILI9341_GREEN);
+      drawBtn(0,0,40,36,"RX",ILI9341_BLACK,ILI9341_GREEN);
   }
   
   if (trx.state.sideband != cur_sideband) {
@@ -319,9 +320,9 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
     const char *sb_txt = (trx.state.sideband == LSB ? "LSB" : "USB");
     cur_sideband=trx.state.sideband;
     if (wrong_sb)
-      drawBtn(160,0,50,36,sb_txt,1,ILI9341_RED,ILI9341_YELLOW);
+      drawBtn(160,0,50,36,sb_txt,ILI9341_RED,ILI9341_YELLOW);
     else
-      drawBtn(160,0,50,36,sb_txt,1,ILI9341_BLACK,ILI9341_BLUE);
+      drawBtn(160,0,50,36,sb_txt,ILI9341_BLACK,ILI9341_BLUE);
   }
 
  if (trx.BandIndex != cur_band) {
@@ -333,9 +334,9 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
       buf[1] = '0'+mc%10; mc/=10;
       if (mc > 0) buf[0] = '0'+mc;
       else buf[0] = '!';
-      drawBtn(40,0,56,36,buf,1,ILI9341_BLACK,ILI9341_BLUE);
+      drawBtn(40,0,56,36,buf,ILI9341_BLACK,ILI9341_BLUE);
     } else
-      drawBtn(40,0,56,36,"",1,ILI9341_BLACK,ILI9341_BLUE);
+      drawBtn(40,0,56,36,"",ILI9341_BLACK,ILI9341_BLUE);
   }
 
   byte cw=trx.BandIndex >= 0 && Bands[trx.BandIndex].startSSB > 0 &&
@@ -343,17 +344,23 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
           trx.state.VFO[vfo_idx] >= Bands[trx.BandIndex].start;
   if (cw != cur_cw) {
     if (cur_cw=cw)
-      drawBtn(90,0,50,36,"CW",1,ILI9341_BLACK,ILI9341_DARKYELLOW);
+      drawBtn(90,0,50,36,"CW",ILI9341_BLACK,ILI9341_DARKYELLOW);
     else
-      drawBtn(90,0,50,36,"",1,ILI9341_BLACK,ILI9341_DARKYELLOW);
+      drawBtn(90,0,50,36,"",ILI9341_BLACK,ILI9341_DARKYELLOW);
   }
 
   if (is_rtc_found && millis()-last_tmtm > 200) {
     RTCData d;
-    char buf[12];
+    char buf[12],*pb;
     last_tmtm=millis();
     RTC_Read(&d,0,sizeof(d));
-    sprintf(buf,"%2x:%02x:%02x",d.hour,d.min,d.sec);
+    //sprintf(buf,"%2x:%02x:%02x",d.hour,d.min,d.sec);
+    pb=cwr_hex2sp(buf,d.hour);
+    *pb++=':';
+    pb=cwr_hex2(pb,d.min);
+    *pb++=':';
+    pb=cwr_hex2(pb,d.sec);
+    *pb=0;
     tft.setFont(NULL);
     tft.setTextSize(2);
     tft.setTextColor(ILI9341_CYAN,ILI9341_BLACK);
@@ -361,7 +368,15 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
     tft.print(buf);
     tft.setTextSize(1);
     tft.setCursor(255,2);
-    sprintf(buf,"%x.%02x.20%02x",d.day,d.month,d.year);
+    //sprintf(buf,"%x.%02x.20%02x",d.day,d.month,d.year);
+    pb=cwr_hex2sp(buf,d.day);
+    *pb++='.';
+    pb=cwr_hex2(pb,d.month);
+    *pb++='.';
+    *pb++='2';
+    *pb++='0';
+    pb=cwr_hex2(pb,d.year);
+    *pb=0;
     tft.print(buf);
   }
 }
@@ -371,7 +386,7 @@ void Display_ILI9341_SPI::clear()
   tft.fillScreen(ILI9341_BLACK);
 }
 
-void Display_ILI9341_SPI::DrawMenu(const char* title, const char** items, byte selected, const char* help, byte fontsize)
+void Display_ILI9341_SPI::DrawMenu(const char* title, const char** items, uint8_t selected, const char* help, uint8_t fontsize)
 {
   tft.setFont(NULL);
   tft.setTextSize(fontsize);
@@ -384,7 +399,8 @@ void Display_ILI9341_SPI::DrawMenu(const char* title, const char** items, byte s
   for (byte i=0; *items; items++,i++) {
     if (i == selected) tft.print(" >");
     else tft.print("  ");
-    tft.println(*items);
+    tft.print(*items);
+    tft.println("   ");
   }
   if (help) {
     tft.println("");
@@ -392,7 +408,7 @@ void Display_ILI9341_SPI::DrawMenu(const char* title, const char** items, byte s
   }
 }
 
-void Display_ILI9341_SPI::DrawCalibration(const char* title, long value, bool hi_res, const char* help) {
+void Display_ILI9341_SPI::DrawCalibration(const char* title, long value, uint8_t hi_res, const char* help) {
   char buf[16];
   tft.setFont(NULL);
   tft.setTextSize(2);
@@ -401,7 +417,16 @@ void Display_ILI9341_SPI::DrawCalibration(const char* title, long value, bool hi
   tft.println(title);
   if (hi_res) tft.println("HI RES MODE");
   else tft.println("           ");
-  sprintf(buf,"CORR: %ld  ",value);
+  //sprintf(buf,"CORR: %ld  ",value);
+  char *pb = cwr_str(buf,"CORR: ");
+  if (value < 0) {
+    *pb++ = '-';
+    value = -value;
+  }
+  pb = cwr_long(pb,value);
+  *pb++ = ' ';
+  *pb++ = ' ';
+  *pb++ = 0;
   tft.println(buf);
   if (help) {
     //tft.setTextSize(1);

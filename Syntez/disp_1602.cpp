@@ -1,4 +1,5 @@
 #include "disp_1602.h"
+#include "utils.h"
 
 byte chInverseT[8] = { 0b11111, 0b11111, 0b11111, 0b10001, 0b11011, 0b11011, 0b11111, 0b11111};
 byte chInverseX[8] = { 0b11111, 0b11111, 0b11111, 0b10101, 0b11011, 0b10101, 0b11111, 0b11111};
@@ -148,13 +149,15 @@ void Display_1602_I2C::Draw(TRX& trx) {
   lcd.print(buf[1]);
 }
 
-void Display_1602_I2C::DrawMenu(const char* title, const char** items, byte selected, const char* help, byte fontsize)
+void Display_1602_I2C::DrawMenu(const char* title, const char** items, uint8_t selected, const char* help, uint8_t fontsize)
 {
   char buf[2][17];
 
   memset(buf,' ',34);
   strncpy(buf[0],title,16);
-  sprintf(buf[1],">%s",items[selected]);
+  //sprintf(buf[1],">%s",items[selected]);
+  buf[1][0]='>';
+  strncpy(buf[1]+1,items[selected],15);
   // supress null writed by sprintf
   for (int i=2;i < 16;i++) {
     if (buf[1][i] == 0) buf[1][i]=' ';
@@ -167,7 +170,7 @@ void Display_1602_I2C::DrawMenu(const char* title, const char** items, byte sele
   lcd.print(buf[1]);
 }
 
-void Display_1602_I2C::DrawCalibration(const char* title, long value, bool hi_res, const char* help = NULL)
+void Display_1602_I2C::DrawCalibration(const char* title, long value, uint8_t hi_res, const char* help = NULL)
 {
   char buf[2][17];
 
@@ -175,11 +178,16 @@ void Display_1602_I2C::DrawCalibration(const char* title, long value, bool hi_re
   strncpy(buf[0],title,16);
   if (hi_res)
     buf[1][0] = '*';
-  sprintf(buf[1]+2,"CORR: %ld",value);
-  // supress null writed by sprintf
-  for (byte i=2;i < 16;i++) {
-    if (buf[1][i] == 0) buf[1][i]=' ';
+  //sprintf(buf[1]+2,"CORR: %ld",value);
+  char *pb = cwr_str(buf[1]+2,"CORR: ");
+  if (value < 0) {
+    *pb++ = '-';
+    value = -value;
   }
+  pb = cwr_long(pb,value);
+  *pb++ = ' ';
+  *pb++ = ' ';
+  *pb++ = 0;
 
   buf[0][16] = 0; // stop for .print
   buf[1][16] = 0; // stop for .print

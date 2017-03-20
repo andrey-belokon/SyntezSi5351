@@ -11,14 +11,14 @@
 
 class Display_ILI9341_SPI: public TRXDisplay {
   private:
-    bool tx;
+    uint8_t tx;
   public:
 	  void setup();
     void reset();
 	  void Draw(TRX& trx);
 	  void clear();
-	  void DrawMenu(const char* title, const char** items, byte selected, const char* help, byte fontsize);
-	  void DrawCalibration(const char* title, long value, bool hi_res, const char* help = NULL);
+	  void DrawMenu(const char* title, const char** items, uint8_t selected, const char* help, uint8_t fontsize);
+	  void DrawCalibration(const char* title, long value, uint8_t hi_res, const char* help = NULL);
 };
 
 #endif

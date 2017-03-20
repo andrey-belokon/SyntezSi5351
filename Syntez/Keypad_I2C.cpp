@@ -37,7 +37,7 @@ int KeypadI2C::Read()
   return code;
 }
 
-void KeypadI2C::pcf8574_write(int data) 
+void KeypadI2C::pcf8574_write(uint8_t data) 
 {
   i2c_begin_write(i2c_addr);
   i2c_write(data);

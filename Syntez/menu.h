@@ -1,21 +1,30 @@
 ///////////////////////////// menu functions ////////////////////////
 
 #include "TinyRTC.h"
+#include "utils.h"
+
+char *fmt_hex_val(char *buf, char *title, uint8_t val)
+{
+  buf = cwr_hex2(cwr_str(buf,title),val);
+  *buf++ = 0;
+  return buf;
+}
 
 void PrintRTCData(RTCData *dt, char *buf, char **items)
 {
   *items++ = buf;
-  buf += sprintf(buf,"Day %x ",dt->day)+1;
-  *items++ = buf;
-  buf += sprintf(buf,"Month %x ",dt->month)+1;
-  *items++ = buf;
-  buf += sprintf(buf,"Year %x ",dt->year)+1;
-  *items++ = buf;
-  buf += sprintf(buf,"Hour %x ",dt->hour)+1;
-  *items++ = buf;
-  buf += sprintf(buf,"Minute %x ",dt->min)+1;
-  *items++ = buf;
-  buf += sprintf(buf,"Second %x ",dt->sec)+1;
+  //buf += sprintf(buf,"Day %x ",dt->day)+1;
+  *items++ = buf = fmt_hex_val(buf,"Day ",dt->day);
+  //buf += sprintf(buf,"Month %x ",dt->month)+1;
+  *items++ = buf = fmt_hex_val(buf,"Month ",dt->month);
+  //buf += sprintf(buf,"Year %x ",dt->year)+1;
+  *items++ = buf = fmt_hex_val(buf,"Year ",dt->year);
+  //buf += sprintf(buf,"Hour %x ",dt->hour)+1;
+  *items++ = buf = fmt_hex_val(buf,"Hour ",dt->hour);
+  //buf += sprintf(buf,"Minute %x ",dt->min)+1;
+  *items++ = buf = fmt_hex_val(buf,"Minute ",dt->min);
+  //buf += sprintf(buf,"Second %x ",dt->sec)+1;
+  fmt_hex_val(buf,"Second ",dt->sec);
   *items = NULL;
 }
 
@@ -104,15 +113,17 @@ void ShowClockMenu()
 
 void PrintSMeterData(int *dt, char *buf, char **items)
 {
-  for (byte i=0; i < 15; i++) {
+  for (uint8_t i=0; i < 15; i++) {
     *items++ = buf;
-    if (i < 9)
-      buf += sprintf(buf,"S%u %u   ",i+1,dt[i])+1;
-    else
-      buf += sprintf(buf,"+%u0 %u   ",i-8,dt[i])+1;
+    *buf++ = (i < 9 ? 'S' : '+');
+    buf = cwr_byte(buf,(i < 9 ? i+1 : i-8));
+    if (i >= 9) *buf++ = '0';
+    *buf++ = ' ';
+    buf = cwr_int(buf,dt[i]);
+    *buf++ = 0;
   }
   *items++ = buf;
-  buf += sprintf(buf,"Save & Exit")+1;
+  cwr_str(buf,"Save & Exit");
   *items = NULL;
 }
 
@@ -120,7 +131,7 @@ void ShowSMeterMenu()
 {
   const char*help = "BandUp,BandDown - navigation\nAttPre - set value\nLock - exit no save";
   int smeter[15];
-  char buf[200];
+  char buf[145];
   char title[16];
   char *items[17];
   byte selected=0;
@@ -128,7 +139,8 @@ void ShowSMeterMenu()
   disp.clear();
   PrintSMeterData(smeter,buf,items);
   while (1) {
-    sprintf(title,"AGC=%u   ",inSMeter.Read());
+    //sprintf(title,"AGC=%u   ",inSMeter.Read());
+    cwr_str(cwr_int(cwr_str(title,"AGC="),inSMeter.Read()),"   ");
     disp.DrawMenu(title,(const char**)items,selected,help,1);
     int keycode=keypad.Read();
     if (keycode >= 0) {

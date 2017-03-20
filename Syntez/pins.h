@@ -7,16 +7,18 @@
 #include <Arduino.h>
 #endif
 
+#define PIN_NC  0xFF
+
 // pin with bouncing, pull up and active low level
 class InputPullUpPin {
   private:
-	  int pin;
-	  bool last;
+	  uint8_t pin;
+	  uint8_t last;
 	  long last_tm;
   public:
-    InputPullUpPin(int _pin):pin(_pin),last(false),last_tm(0) {}
+    InputPullUpPin(uint8_t _pin):pin(_pin),last(false),last_tm(0) {}
     void setup();
-    bool Read();
+    uint8_t Read();
 };
 
 // return raw ADC result for internal 1.1v voltage reference
@@ -24,9 +26,10 @@ int ReadV11Ref();
 
 class InputAnalogPin {
   private:
-	  int pin,value,rfac;
+	  uint8_t pin;
+	  int value,rfac;
   public:
-	  InputAnalogPin(int _pin, int _rfac=0):
+	  InputAnalogPin(uint8_t _pin, int _rfac=0):
 	  pin(_pin),value(0),rfac(_rfac) {}
     void setup();
     int Read();
@@ -36,32 +39,32 @@ class InputAnalogPin {
 
 class OutputBinPin {
   private:
-	  int pin,active_level,def_value,state;
+	  uint8_t pin,active_level,def_value,state;
   public:
-	  OutputBinPin(int _pin, int _def_value, int _active_level):
-	  pin(_pin),active_level(_active_level),def_value(_def_value),state(-1) {}
+	  OutputBinPin(uint8_t _pin, uint8_t _def_value, uint8_t _active_level):
+	  pin(_pin),active_level(_active_level),def_value(_def_value),state(0xFF) {}
     void setup();
-    void Write(bool value);
+    void Write(uint8_t value);
 };
 
 class OutputTonePin {
   private:
-    int pin,freq;
+    uint8_t pin;
+    int freq;
   public:
-    OutputTonePin(int _pin, int _freq):pin(_pin),freq(_freq) {}
+    OutputTonePin(uint8_t _pin, int _freq):pin(_pin),freq(_freq) {}
     void setup();
-    void Write(bool value);
+    void Write(uint8_t value);
 };
 
 class OutputPCF8574 {
   private:
-	  int i2c_addr;
-  	byte value,old_value;
-    void pcf8574_write(int data);
+	  uint8_t i2c_addr,value,old_value;
+    void pcf8574_write(uint8_t data);
   public:
-	  OutputPCF8574(int _i2c_addr, byte init_state):i2c_addr(_i2c_addr),value(init_state),old_value(init_state) {}
+	  OutputPCF8574(uint8_t _i2c_addr, uint8_t init_state):i2c_addr(_i2c_addr),value(init_state),old_value(init_state) {}
     void setup();
-	  void Set(int pin, bool state);
+	  void Set(uint8_t pin, uint8_t state);
 	  void Write();
 };
 

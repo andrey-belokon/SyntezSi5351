@@ -14,14 +14,14 @@
 
 class KeypadI2C {
   private:
-    byte i2c_addr;
+    uint8_t i2c_addr;
     int last_code;
     long last_code_tm;
     
-    void pcf8574_write(int data);
+    void pcf8574_write(uint8_t data);
     int pcf8574_byte_read();
   public:
-	  KeypadI2C(int _i2c_addr): i2c_addr(_i2c_addr), last_code(-1), last_code_tm(0) {}
+	  KeypadI2C(uint8_t _i2c_addr): i2c_addr(_i2c_addr), last_code(-1), last_code_tm(0) {}
     
     void setup();
     

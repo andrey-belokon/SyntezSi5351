@@ -11,8 +11,8 @@ int HILO_TRASHOLD_TM;
 // !!!!! не изменять пины - завязано на прерывания !!!!!
 #define pinA 2
 #define pinB 3
-volatile byte aFlag = 0;
-volatile byte bFlag = 0;
+volatile uint8_t aFlag = 0;
+volatile uint8_t bFlag = 0;
 volatile long EncoderValue = 0;
 volatile unsigned long last_tm = 0;
 

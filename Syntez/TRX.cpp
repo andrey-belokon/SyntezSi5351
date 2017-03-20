@@ -40,7 +40,7 @@ void TRX::ChangeFreq(long freq_delta) {
   }
 }
 
-void TRX::ExecCommand(TRXCommand cmd) {
+void TRX::ExecCommand(uint8_t cmd) {
   if (TX && (cmd != cmdQRP)) return; // блокируем при передаче
   switch (cmd) {
     case cmdAttPre: // переключает по кругу аттенюатор/увч

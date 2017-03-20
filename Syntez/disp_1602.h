@@ -13,14 +13,14 @@
 class Display_1602_I2C: public TRXDisplay {
   private:
   	LiquidCrystal_I2C lcd;
-    bool tx;
+    uint8_t tx;
   public:
 	  Display_1602_I2C (int i2c_addr): lcd(i2c_addr,16,2) {}
 	  void setup();
 	  void Draw(TRX& trx);
-    void clear() { lcd.clear(); }
-    void DrawMenu(const char* title, const char** items, byte selected, const char* help, byte fontsize);
-    void DrawCalibration(const char* title, long value, bool hi_res, const char* help = NULL);
+    inline void clear() { lcd.clear(); }
+    void DrawMenu(const char* title, const char** items, uint8_t selected, const char* help, uint8_t fontsize);
+    void DrawCalibration(const char* title, long value, uint8_t hi_res, const char* help = NULL);
 };
 
 #endif

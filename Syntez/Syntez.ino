@@ -27,7 +27,7 @@
 #define MENU_DELAY      1000      // задержка вызова меню в сек
 
 // мапинг сканкодов на команды
-const TRXCommand KeyMap[4][4] = {
+const uint8_t KeyMap[4][4] = {
   cmdBandUp, cmdBandDown, cmdAttPre, cmdVFOSel,
   cmdVFOEQ,  cmdUSBLSB,   cmdLock,   cmdSplit,
   cmdRIT,    cmdHam,      cmdZero,   cmdQRP,
@@ -388,7 +388,7 @@ void loop()
     menu_tm = -1; 
   }
   if ((keycode=keypad.Read()) >= 0) {
-    TRXCommand cmd=KeyMap[keycode & 0xF][keycode >> 4];
+    uint8_t cmd=KeyMap[keycode & 0xF][keycode >> 4];
     if (cmd == cmdLock) {
       // длительное нажатие MENU_KEY - вызов меню
       if (menu_tm < 0) {
