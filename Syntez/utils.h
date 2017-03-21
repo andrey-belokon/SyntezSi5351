@@ -8,4 +8,8 @@ char *cwr_hex2(char *p, uint8_t v);
 char *cwr_hex2sp(char *p, uint8_t v);
 char *cwr_str(char *p, char *v);
 
+// with zero leading fixed space
+void ltoazp(char *buf, long v, uint8_t n);
+long atoln(char *buf, uint8_t n);
+
 #endif

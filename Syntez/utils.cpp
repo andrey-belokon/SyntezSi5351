@@ -58,3 +58,18 @@ char *cwr_hex2sp(char *p, uint8_t v)
   return p+2;
 }
 
+void ltoazp(char *buf, long v, uint8_t n)
+{
+  buf+=n;
+  for (; n > 0; n--, v/=10) 
+    *--buf = v%10 + 0x30;
+}
+
+long atoln(char *buf, uint8_t n)
+{
+  long v = 0;
+  for (; n > 0; n--) 
+    v = v*10 + (*buf++) - 0x30;
+  return v;
+}
+

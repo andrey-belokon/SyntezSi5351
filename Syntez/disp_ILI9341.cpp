@@ -314,12 +314,13 @@ void Display_ILI9341_SPI::Draw(TRX& trx) {
     else
       drawBtn(0,0,40,36,"RX",ILI9341_BLACK,ILI9341_GREEN);
   }
-  
-  if (trx.state.sideband != cur_sideband) {
-    bool wrong_sb = trx.BandIndex >= 0 && Bands[trx.BandIndex].sideband != trx.state.sideband;
-    const char *sb_txt = (trx.state.sideband == LSB ? "LSB" : "USB");
-    cur_sideband=trx.state.sideband;
-    if (wrong_sb)
+
+  uint8_t sb = trx.state.sideband;
+  if (trx.BandIndex >= 0 && Bands[trx.BandIndex].sideband != trx.state.sideband) sb |= 0x80;
+  if (sb != cur_sideband) {
+    char *sb_txt = (trx.state.sideband == LSB ? "LSB" : "USB");
+    cur_sideband=sb;
+    if (sb & 0x80)
       drawBtn(160,0,50,36,sb_txt,ILI9341_RED,ILI9341_YELLOW);
     else
       drawBtn(160,0,50,36,sb_txt,ILI9341_BLACK,ILI9341_BLUE);
