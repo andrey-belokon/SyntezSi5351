@@ -40,8 +40,10 @@ byte bcd2dec(byte val)
 
 void ShowClockMenu()
 {
-  char *title = (char *)F("Clock setup");
-  char *help = (char *)F("Lock - exit no save\nAttPre - save & exit\nrotate encoder for change");
+  char title[12];
+  strcpy_P(title,PSTR("Clock setup"));
+  char help[69];
+  strcpy_P(help,PSTR("Lock - exit no save\nAttPre - save & exit\nrotate encoder for change"));
   char buf[64];
   char *items[7];
   RTCData dt;
@@ -129,7 +131,8 @@ void PrintSMeterData(int *dt, char *buf, char **items)
 
 void ShowSMeterMenu()
 {
-  char *help = (char*)F("BandUp,BandDown - navigation\nAttPre - set value\nLock - exit no save");
+  char help[70];
+  strcpy_P(help,PSTR("BandUp,BandDown - navigation\nAttPre - set value\nLock - exit no save"));
   int smeter[15];
   char buf[145];
   char title[16];
@@ -174,8 +177,10 @@ void ShowSMeterMenu()
 
 void ShowSi5351CalibrationMenu()
 {
-  char *calibrate_title = (char*)F("CALIBRATE SI5351");
-  char *help = (char*)F("BandUp - change step\nBandDown - set to zero\nLock - exit no save\nAttPre - save & exit\nrotate encoder for change");
+  char calibrate_title[17];
+  char help[115];
+  strcpy_P(calibrate_title,PSTR("CALIBRATE SI5351"));
+  strcpy_P(help,PSTR("BandUp - change step\nBandDown - set to zero\nLock - exit no save\nAttPre - save & exit\nrotate encoder for change"));
   // крутим энкодер пока на выходе VFO1 не будет частота "по нулям"
   // потом нажимаем btBandDown
   // выход с отменой - btBandUp
@@ -221,9 +226,11 @@ void ShowSi5351CalibrationMenu()
 
 void ShowMenu()
 {
-  char* title = (char*)F("Main menu");
-  const char* MenuItems[] = {"Clock","Si5351","S-Meter","Exit",NULL};
-  char* help = (char*)F("BandUp/BandDown - move\nAttPre - select\nLock - exit");
+  char* MenuItems[] = {"Clock","Si5351","S-Meter","Exit",NULL};
+  char title[10];
+  char help[54];
+  strcpy_P(title,PSTR("Main menu"));
+  strcpy_P(help,PSTR("BandUp/BandDown - move\nAttPre - select\nLock - exit"));
   byte selected=0;
   disp.clear();
   disp.DrawMenu(title,MenuItems,selected,help,2);
