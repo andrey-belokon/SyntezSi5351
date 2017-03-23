@@ -1,5 +1,9 @@
 #include "TRX.h"
 
+const struct _Bands Bands[BAND_COUNT] = {
+  DEFINED_BANDS
+};
+
 TRX::TRX() {
   for (int i=0; i < BAND_COUNT; i++) {
 	BandData[i].VFO_Index = 0;
