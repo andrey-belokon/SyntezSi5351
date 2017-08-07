@@ -214,7 +214,7 @@ void UpdateFreq()
 #ifdef MODE_DOUBLE_IF_LSB
   vfo.set_freq(
     CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
-    CLK1_MULT*(IFreq + (trx.state.sideband == LSB ? IFreq_LSB : -IFreq_LSB)),
+    CLK1_MULT*(IFreqEx + (trx.state.sideband == LSB ? IFreq_LSB : -IFreq_LSB)),
     CLK2_MULT*(IFreq_LSB)
   );
 #endif
@@ -222,7 +222,7 @@ void UpdateFreq()
 #ifdef MODE_DOUBLE_IF_USB
   vfo.set_freq(
     CLK0_MULT*(trx.state.VFO[trx.GetVFOIndex()] + IFreqEx + (trx.RIT && !trx.TX ? trx.RIT_Value : 0)),
-    CLK1_MULT*(IFreq + (trx.state.sideband == USB ? IFreq_USB : -IFreq_USB)),
+    CLK1_MULT*(IFreqEx + (trx.state.sideband == USB ? IFreq_USB : -IFreq_USB)),
     CLK2_MULT*(IFreq_USB)
   );
 #endif
