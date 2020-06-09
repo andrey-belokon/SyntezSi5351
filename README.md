@@ -1,3 +1,5 @@
+This project closed. New version of universal firmware here: https://github.com/andrey-belokon/Syntez_Si5351_Si570
+
 Simple VFO on Si5351 build from low cost chinese modules
 
 Circuit and detail description http://dspview.com/viewtopic.php?f=22&t=162
